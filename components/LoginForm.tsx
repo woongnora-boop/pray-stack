@@ -2,21 +2,30 @@
 
 import { useActionState, type ReactElement } from 'react';
 
-import { signInWithEmail, type AuthActionState } from '@/app/actions/auth';
+import type { AuthActionState } from '@/app/actions/auth-types';
+import { signInWithEmail } from '@/app/actions/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 interface LoginFormProps {
-  nextPath: string;
+  /** 로그인 후 이동할 상대 경로 (예: `/meditation/new`) */
+  defaultNext?: string;
+  /** 인증 링크 오류 등 외부에서 전달되는 메시지 */
+  authLinkError?: string | null;
 }
 
-export function LoginForm({ nextPath }: LoginFormProps): ReactElement {
+export function LoginForm({ defaultNext = '/', authLinkError }: LoginFormProps): ReactElement {
   const [state, formAction, pending] = useActionState(signInWithEmail, null as AuthActionState | null);
 
   return (
     <form action={formAction} className="space-y-4">
-      <input type="hidden" name="next" value={nextPath} />
+      <input type="hidden" name="next" value={defaultNext} />
+      {authLinkError ? (
+        <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
+          {authLinkError}
+        </p>
+      ) : null}
       {state?.success === false ? (
         <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
           {state.error}

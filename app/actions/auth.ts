@@ -3,9 +3,12 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 
+import type { AuthActionState } from '@/app/actions/auth-types';
+import { createEmailSignUpClient } from '@/lib/supabase/email-signup-client';
 import { createClient } from '@/lib/supabase/server';
+import { getSiteOrigin, safeRelativeNextPath } from '@/lib/site-url';
 
-export type AuthActionState = { success: false; error: string } | { success: true };
+export type { AuthActionState } from '@/app/actions/auth-types';
 
 /** 가입·인증 메일 발송이 프로젝트 한도를 넘었을 때 (이메일 주소를 바꿔도 같은 한도 공유) */
 const RATE_LIMIT_MESSAGE =
@@ -54,7 +57,7 @@ export async function signInWithEmail(
 ): Promise<AuthActionState> {
   const email = String(formData.get('email') ?? '').trim();
   const password = String(formData.get('password') ?? '');
-  const next = String(formData.get('next') ?? '/meditation');
+  const nextAfterLogin = safeRelativeNextPath(String(formData.get('next') ?? ''));
 
   if (!email || !password) {
     return { success: false, error: '이메일과 비밀번호를 입력해 주세요.' };
@@ -68,7 +71,7 @@ export async function signInWithEmail(
   }
 
   revalidatePath('/', 'layout');
-  redirect(next.startsWith('/') ? next : '/meditation');
+  redirect(nextAfterLogin);
 }
 
 function isNetworkOrDnsError(err: unknown): boolean {
@@ -109,8 +112,17 @@ export async function signUp(
   }
 
   try {
-    const supabase = await createClient();
-    const { error } = await supabase.auth.signUp({ email, password });
+    /** PKCE(server client)가 아닌 implicit 클라이언트 — 확인 메일을 다른 기기에서 열어도 세션을 맺을 수 있습니다. */
+    const supabase = createEmailSignUpClient();
+    const origin = await getSiteOrigin();
+    const emailRedirectTo = `${origin}/auth/callback`;
+    const { data: signUpData, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo,
+      },
+    });
 
     if (error) {
       if (isAuthRateLimited(error)) {
@@ -136,6 +148,22 @@ export async function signUp(
         error: `가입에 실패했습니다: ${error.message}`,
       };
     }
+
+    revalidatePath('/', 'layout');
+
+    /** Confirm email이 켜져 있으면 세션이 없고, 메일 인증 후에야 로그인할 수 있습니다. */
+    const session = signUpData?.session ?? null;
+    const confirmedEmail = signUpData?.user?.email ?? email;
+
+    if (session) {
+      redirect('/');
+    }
+
+    return {
+      success: true,
+      pendingVerification: true,
+      email: confirmedEmail,
+    };
   } catch (err) {
     if (isNetworkOrDnsError(err)) {
       return {
@@ -146,9 +174,6 @@ export async function signUp(
     }
     throw err;
   }
-
-  revalidatePath('/', 'layout');
-  redirect('/');
 }
 
 export async function signOut(): Promise<void> {

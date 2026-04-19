@@ -4,8 +4,13 @@ import type { ReactElement } from 'react';
 import { listMeditationDays } from '@/app/actions/meditation';
 import { ListPageHero, ListPagePanel, listPrimaryLinkClass } from '@/components/layout/ListPageShell';
 import { MeditationList } from '@/components/meditation/MeditationList';
+import { createClient } from '@/lib/supabase/server';
 
 export default async function MeditationListPage(): Promise<ReactElement> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   const days = await listMeditationDays();
 
   return (
@@ -16,13 +21,19 @@ export default async function MeditationListPage(): Promise<ReactElement> {
         title="묵상"
         description="날짜별로 설교·QT 등 묵상을 남기고, 다시 읽을 수 있습니다."
         actions={
-          <Link href="/meditation/new" className={listPrimaryLinkClass()}>
-            새 묵상
-          </Link>
+          user ? (
+            <Link href="/meditation/new" className={listPrimaryLinkClass()}>
+              새 묵상
+            </Link>
+          ) : (
+            <Link href="/login?next=/meditation/new" className={listPrimaryLinkClass()}>
+              로그인하고 새 묵상
+            </Link>
+          )
         }
       />
       <ListPagePanel className="p-5 md:p-6">
-        <MeditationList days={days} tone="amber" />
+        <MeditationList days={days} tone="amber" loggedIn={Boolean(user)} />
       </ListPagePanel>
     </div>
   );

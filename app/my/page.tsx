@@ -23,7 +23,7 @@ export default async function MyPage(): Promise<ReactElement> {
         <div className={appCardClass}>
           <p className="text-sm text-[var(--muted)]">로그인 후 계정 메뉴와 로그아웃을 이용할 수 있습니다.</p>
           <div className="mt-4 flex flex-wrap gap-2">
-            <Link href="/login?next=/my" className={cn(appPrimaryButtonClass, 'sm:w-auto')}>
+            <Link href="/login" className={cn(appPrimaryButtonClass, 'sm:w-auto')}>
               로그인
             </Link>
             <Link
