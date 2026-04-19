@@ -1,0 +1,537 @@
+'use server';
+
+import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
+import { z } from 'zod';
+
+import { createClient } from '@/lib/supabase/server';
+import {
+  mannaCategoryNameSchema,
+  mannaEntryFormSchema,
+  type MannaEntryFormValues,
+} from '@/lib/validations/manna';
+
+export type MannaActionState =
+  | { success: true; message?: string }
+  | { success: false; error: string; fieldErrors?: Record<string, string[] | undefined> };
+
+export interface MannaCategoryRow {
+  id: string;
+  name: string;
+  is_default: boolean;
+  sort_order: number;
+}
+
+export interface MannaEntryListItem {
+  id: string;
+  verse_reference: string;
+  verse_text: string;
+  note: string | null;
+  category_id: string;
+  category_name: string;
+  entry_date: string;
+  created_at: string;
+}
+
+export type MannaEntryDetail = MannaEntryFormValues & {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  category_name: string;
+};
+
+function mapDbError(dbError?: { message?: string } | null): string {
+  const base = '저장 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.';
+  if (process.env.NODE_ENV === 'development' && dbError?.message) {
+    return `${base} [개발] ${dbError.message}`;
+  }
+  return base;
+}
+
+function zodFieldErrors(error: z.ZodError): Record<string, string[] | undefined> {
+  return error.flatten().fieldErrors;
+}
+
+/** Supabase에 `entry_date` 컬럼이 아직 없을 때 나는 오류 (목록이 비어 보이는 원인) */
+function isMissingEntryDateColumnError(error: { message?: string; code?: string } | null): boolean {
+  if (!error) return false;
+  const msg = (error.message ?? '').toLowerCase();
+  if (msg.includes('entry_date') && (msg.includes('does not exist') || msg.includes('could not find'))) {
+    return true;
+  }
+  if (msg.includes('entry_date') && msg.includes('schema cache')) return true;
+  if (error.code === '42703') return true;
+  return false;
+}
+
+function entryDateFromRow(
+  row: { entry_date?: string; created_at: string },
+): string {
+  return row.entry_date?.slice(0, 10) ?? row.created_at.slice(0, 10);
+}
+
+type MannaListRow = {
+  id: string;
+  verse_reference: string;
+  verse_text: string;
+  note: string | null;
+  category_id: string;
+  created_at: string;
+  entry_date?: string;
+};
+
+type MannaDetailRow = {
+  id: string;
+  verse_reference: string;
+  verse_text: string;
+  note: string | null;
+  category_id: string;
+  entry_date?: string;
+  created_at: string;
+  updated_at: string;
+};
+
+async function assertCategoryOwnedByUser(userId: string, categoryId: string): Promise<boolean> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from('manna_categories')
+    .select('id')
+    .eq('id', categoryId)
+    .eq('user_id', userId)
+    .maybeSingle();
+  return Boolean(data);
+}
+
+export async function listMannaCategories(): Promise<MannaCategoryRow[]> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from('manna_categories')
+    .select('id, name, is_default, sort_order')
+    .eq('user_id', user.id)
+    .order('sort_order', { ascending: true })
+    .order('name', { ascending: true });
+
+  if (error || !data) {
+    return [];
+  }
+
+  return data as MannaCategoryRow[];
+}
+
+export async function listMannaEntries(filterCategoryId: string | null): Promise<MannaEntryListItem[]> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return [];
+  }
+
+  const categories = await listMannaCategories();
+  const catMap = new Map(categories.map((c) => [c.id, c.name]));
+
+  const mapRows = (rows: MannaListRow[]): MannaEntryListItem[] =>
+    rows.map((r) => ({
+      ...r,
+      entry_date: entryDateFromRow(r),
+      category_name: catMap.get(r.category_id) ?? '',
+    }));
+
+  let query = supabase
+    .from('manna_entries')
+    .select('id, verse_reference, verse_text, note, category_id, entry_date, created_at')
+    .eq('user_id', user.id)
+    .order('entry_date', { ascending: false })
+    .order('created_at', { ascending: false });
+
+  if (filterCategoryId) {
+    query = query.eq('category_id', filterCategoryId);
+  }
+
+  const { data: rows, error } = await query;
+
+  if (!error && rows) {
+    return mapRows(rows as MannaListRow[]);
+  }
+
+  if (error && !isMissingEntryDateColumnError(error)) {
+    return [];
+  }
+
+  let q2 = supabase
+    .from('manna_entries')
+    .select('id, verse_reference, verse_text, note, category_id, created_at')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false });
+
+  if (filterCategoryId) {
+    q2 = q2.eq('category_id', filterCategoryId);
+  }
+
+  const { data: rows2, error: err2 } = await q2;
+
+  if (err2 || !rows2) {
+    return [];
+  }
+
+  return mapRows(rows2 as MannaListRow[]);
+}
+
+/** 홈 피드용: `entry_date` 컬럼 유무와 관계없이 최신 1건 */
+export async function getLatestMannaEntryForHome(): Promise<MannaEntryListItem | null> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return null;
+  }
+
+  const categories = await listMannaCategories();
+  const catMap = new Map(categories.map((c) => [c.id, c.name]));
+
+  const q1 = await supabase
+    .from('manna_entries')
+    .select('id, verse_reference, verse_text, note, category_id, created_at, entry_date')
+    .eq('user_id', user.id)
+    .order('entry_date', { ascending: false })
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!q1.error && q1.data) {
+    const r = q1.data as MannaListRow;
+    return {
+      id: r.id,
+      verse_reference: r.verse_reference,
+      verse_text: r.verse_text,
+      note: r.note,
+      category_id: r.category_id,
+      created_at: r.created_at,
+      entry_date: entryDateFromRow(r),
+      category_name: catMap.get(r.category_id) ?? '',
+    };
+  }
+
+  if (q1.error && !isMissingEntryDateColumnError(q1.error)) {
+    return null;
+  }
+
+  const q2 = await supabase
+    .from('manna_entries')
+    .select('id, verse_reference, verse_text, note, category_id, created_at')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (q2.error || !q2.data) {
+    return null;
+  }
+
+  const r = q2.data as MannaListRow;
+  return {
+    id: r.id,
+    verse_reference: r.verse_reference,
+    verse_text: r.verse_text,
+    note: r.note,
+    category_id: r.category_id,
+    created_at: r.created_at,
+    entry_date: entryDateFromRow(r),
+    category_name: catMap.get(r.category_id) ?? '',
+  };
+}
+
+export async function getMannaEntry(entryId: string): Promise<MannaEntryDetail | null> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return null;
+  }
+
+  let row: MannaDetailRow | null = null;
+
+  const primary = await supabase
+    .from('manna_entries')
+    .select('id, verse_reference, verse_text, note, category_id, entry_date, created_at, updated_at')
+    .eq('id', entryId)
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  if (!primary.error && primary.data) {
+    row = primary.data as MannaDetailRow;
+  } else if (primary.error && isMissingEntryDateColumnError(primary.error)) {
+    const fb = await supabase
+      .from('manna_entries')
+      .select('id, verse_reference, verse_text, note, category_id, created_at, updated_at')
+      .eq('id', entryId)
+      .eq('user_id', user.id)
+      .maybeSingle();
+    if (!fb.error && fb.data) {
+      row = fb.data as MannaDetailRow;
+    }
+  }
+
+  if (!row) {
+    return null;
+  }
+
+  const typed: MannaDetailRow = row;
+
+  const { data: cat } = await supabase
+    .from('manna_categories')
+    .select('name')
+    .eq('id', typed.category_id)
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  const categoryName = (cat as { name: string } | null)?.name ?? '';
+
+  return {
+    id: typed.id,
+    verse_reference: typed.verse_reference,
+    verse_text: typed.verse_text,
+    note: typed.note ?? undefined,
+    category_id: typed.category_id,
+    entry_date: entryDateFromRow(typed),
+    created_at: typed.created_at,
+    updated_at: typed.updated_at,
+    category_name: categoryName,
+  };
+}
+
+export async function createMannaEntry(
+  _prev: MannaActionState | null,
+  input: unknown,
+): Promise<MannaActionState> {
+  const parsed = mannaEntryFormSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: '입력값을 확인해 주세요.',
+      fieldErrors: zodFieldErrors(parsed.error),
+    };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { success: false, error: '로그인이 필요합니다.' };
+  }
+
+  const ok = await assertCategoryOwnedByUser(user.id, parsed.data.category_id);
+  if (!ok) {
+    return { success: false, error: '선택한 카테고리를 사용할 수 없습니다.' };
+  }
+
+  const insertBase = {
+    user_id: user.id,
+    category_id: parsed.data.category_id,
+    verse_reference: parsed.data.verse_reference,
+    verse_text: parsed.data.verse_text,
+    note: parsed.data.note ?? null,
+  };
+
+  let { data: inserted, error } = await supabase
+    .from('manna_entries')
+    .insert({
+      ...insertBase,
+      entry_date: parsed.data.entry_date,
+    })
+    .select('id')
+    .single();
+
+  if (error && isMissingEntryDateColumnError(error)) {
+    const retry = await supabase.from('manna_entries').insert(insertBase).select('id').single();
+    inserted = retry.data;
+    error = retry.error;
+  }
+
+  if (error || !inserted) {
+    return { success: false, error: mapDbError(error) };
+  }
+
+  revalidatePath('/manna');
+  revalidatePath('/');
+  redirect(`/manna/${(inserted as { id: string }).id}`);
+}
+
+export async function updateMannaEntry(
+  entryId: string,
+  _prev: MannaActionState | null,
+  input: unknown,
+): Promise<MannaActionState> {
+  const parsed = mannaEntryFormSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: '입력값을 확인해 주세요.',
+      fieldErrors: zodFieldErrors(parsed.error),
+    };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { success: false, error: '로그인이 필요합니다.' };
+  }
+
+  const { data: existing, error: fetchError } = await supabase
+    .from('manna_entries')
+    .select('id')
+    .eq('id', entryId)
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  if (fetchError || !existing) {
+    return { success: false, error: '말씀을 찾을 수 없습니다.' };
+  }
+
+  const ok = await assertCategoryOwnedByUser(user.id, parsed.data.category_id);
+  if (!ok) {
+    return { success: false, error: '선택한 카테고리를 사용할 수 없습니다.' };
+  }
+
+  const updateBase = {
+    category_id: parsed.data.category_id,
+    verse_reference: parsed.data.verse_reference,
+    verse_text: parsed.data.verse_text,
+    note: parsed.data.note ?? null,
+  };
+
+  let { error } = await supabase
+    .from('manna_entries')
+    .update({
+      ...updateBase,
+      entry_date: parsed.data.entry_date,
+    })
+    .eq('id', entryId)
+    .eq('user_id', user.id);
+
+  if (error && isMissingEntryDateColumnError(error)) {
+    const retry = await supabase
+      .from('manna_entries')
+      .update(updateBase)
+      .eq('id', entryId)
+      .eq('user_id', user.id);
+    error = retry.error;
+  }
+
+  if (error) {
+    return { success: false, error: mapDbError(error) };
+  }
+
+  revalidatePath('/manna');
+  revalidatePath('/');
+  revalidatePath(`/manna/${entryId}`);
+  revalidatePath(`/manna/${entryId}/edit`);
+  return { success: true, message: '저장되었습니다.' };
+}
+
+export async function deleteMannaEntry(entryId: string): Promise<MannaActionState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { success: false, error: '로그인이 필요합니다.' };
+  }
+
+  const { error } = await supabase.from('manna_entries').delete().eq('id', entryId).eq('user_id', user.id);
+
+  if (error) {
+    return { success: false, error: mapDbError(error) };
+  }
+
+  revalidatePath('/manna');
+  revalidatePath('/');
+  return { success: true };
+}
+
+export async function submitMannaEntryForm(
+  prev: MannaActionState | null,
+  formData: FormData,
+): Promise<MannaActionState> {
+  const mode = String(formData.get('_mode') ?? 'create');
+  const entryId = String(formData.get('_entryId') ?? '');
+  const raw = String(formData.get('_payload') ?? '{}');
+  let parsedJson: unknown;
+  try {
+    parsedJson = JSON.parse(raw) as unknown;
+  } catch {
+    return { success: false, error: '요청 형식이 올바르지 않습니다.' };
+  }
+
+  if (mode === 'edit') {
+    if (!entryId) {
+      return { success: false, error: '수정할 기록을 찾을 수 없습니다.' };
+    }
+    return updateMannaEntry(entryId, prev, parsedJson);
+  }
+
+  return createMannaEntry(prev, parsedJson);
+}
+
+export async function createMannaCategory(
+  _prev: MannaActionState | null,
+  formData: FormData,
+): Promise<MannaActionState> {
+  const parsed = mannaCategoryNameSchema.safeParse({
+    name: String(formData.get('name') ?? ''),
+  });
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: '입력값을 확인해 주세요.',
+      fieldErrors: zodFieldErrors(parsed.error),
+    };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { success: false, error: '로그인이 필요합니다.' };
+  }
+
+  const { data: maxRow } = await supabase
+    .from('manna_categories')
+    .select('sort_order')
+    .eq('user_id', user.id)
+    .order('sort_order', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const nextOrder = ((maxRow as { sort_order: number } | null)?.sort_order ?? 0) + 1;
+
+  const { error } = await supabase.from('manna_categories').insert({
+    user_id: user.id,
+    name: parsed.data.name,
+    is_default: false,
+    sort_order: nextOrder,
+  });
+
+  if (error) {
+    if (error.code === '23505') {
+      return { success: false, error: '이미 같은 이름의 카테고리가 있습니다.' };
+    }
+    return { success: false, error: mapDbError(error) };
+  }
+
+  revalidatePath('/manna');
+  return { success: true, message: '카테고리가 추가되었습니다.' };
+}
