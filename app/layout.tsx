@@ -4,6 +4,7 @@ import type { ReactElement, ReactNode } from 'react';
 import { Toaster } from 'sonner';
 
 import { AppHeader } from '@/components/AppHeader';
+import { BottomTabBar } from '@/components/app-shell/BottomTabBar';
 
 import './globals.css';
 
@@ -18,8 +19,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Pray Stack',
-  description: '묵상 · 만나 · 감사노트',
+  title: '말씀기도',
+  description: '묵상·말씀(만나)·감사를 한곳에 남기는 신앙 기록',
 };
 
 export default function RootLayout({ children }: { children: ReactNode }): ReactElement {
@@ -27,7 +28,8 @@ export default function RootLayout({ children }: { children: ReactNode }): React
     <html lang="ko">
       <body className={`${geistSans.variable} ${geistMono.variable} min-h-screen font-sans antialiased`}>
         <AppHeader />
-        <main className="mx-auto max-w-4xl px-4 py-8">{children}</main>
+        <main className="mx-auto max-w-lg px-4 pb-28 pt-4 md:max-w-2xl md:pt-6">{children}</main>
+        <BottomTabBar />
         <Toaster richColors position="top-center" />
       </body>
     </html>

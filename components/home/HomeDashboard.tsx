@@ -12,7 +12,14 @@ function previewText(text: string, max: number): string {
   return `${t.slice(0, max)}…`;
 }
 
-export function HomeDashboard({ feed }: { feed: HomeFeedData }): ReactElement {
+export function HomeDashboard({
+  feed,
+  compact = false,
+}: {
+  feed: HomeFeedData;
+  /** 홈 상단에 다른 블록이 있을 때 세로 높이를 줄입니다 */
+  compact?: boolean;
+}): ReactElement {
   return (
     <div className={homeShellCardClass}>
       <div className="border-b border-[var(--border)] bg-gradient-to-br from-[var(--background)] via-[var(--card)] to-[var(--background)] px-5 py-4 md:px-6 md:py-5">
@@ -23,14 +30,23 @@ export function HomeDashboard({ feed }: { feed: HomeFeedData }): ReactElement {
           <div>
             <h2 className="text-base font-semibold tracking-tight text-[var(--foreground)]">최근 기록</h2>
             <p className="mt-0.5 text-sm leading-relaxed text-[var(--muted)]">
-              가장 최근에 남긴 묵상, 말씀, 감사 노트예요. 카드를 눌러 상세로 이동합니다.
+              {compact
+                ? '가장 최근에 남긴 기록이에요. 카드를 눌러 열 수 있습니다.'
+                : '가장 최근에 남긴 묵상, 말씀, 감사 노트예요. 카드를 눌러 상세로 이동합니다.'}
             </p>
           </div>
         </div>
       </div>
 
-      <div className="grid min-h-[min(68vh,640px)] grid-rows-3 gap-0 divide-y divide-[var(--border)] p-3 md:p-4">
+      <div
+        className={
+          compact
+            ? 'grid grid-rows-3 gap-0 divide-y divide-[var(--border)] p-3 md:p-4'
+            : 'grid min-h-[min(68vh,640px)] grid-rows-3 gap-0 divide-y divide-[var(--border)] p-3 md:p-4'
+        }
+      >
         <FeedRow
+          compact={compact}
           tone="amber"
           title="묵상"
           description="그날의 묵상"
@@ -40,6 +56,7 @@ export function HomeDashboard({ feed }: { feed: HomeFeedData }): ReactElement {
         >
           {feed.meditation ? (
             <FeedPreviewLink
+              compact={compact}
               href={`/meditation/${feed.meditation.id}`}
               tone="amber"
               meta={feed.meditation.meditation_date}
@@ -52,6 +69,7 @@ export function HomeDashboard({ feed }: { feed: HomeFeedData }): ReactElement {
             />
           ) : (
             <FeedEmpty
+              compact={compact}
               tone="amber"
               message="아직 묵상 기록이 없습니다."
               href="/meditation/new"
@@ -61,6 +79,7 @@ export function HomeDashboard({ feed }: { feed: HomeFeedData }): ReactElement {
         </FeedRow>
 
         <FeedRow
+          compact={compact}
           tone="sky"
           title="만나"
           description="말씀과 본문"
@@ -70,6 +89,7 @@ export function HomeDashboard({ feed }: { feed: HomeFeedData }): ReactElement {
         >
           {feed.manna ? (
             <FeedPreviewLink
+              compact={compact}
               href={`/manna/${feed.manna.id}`}
               tone="sky"
               meta={`${feed.manna.entry_date} · ${feed.manna.category_name}`}
@@ -78,6 +98,7 @@ export function HomeDashboard({ feed }: { feed: HomeFeedData }): ReactElement {
             />
           ) : (
             <FeedEmpty
+              compact={compact}
               tone="sky"
               message="아직 말씀이 없습니다."
               href="/manna/new"
@@ -87,6 +108,7 @@ export function HomeDashboard({ feed }: { feed: HomeFeedData }): ReactElement {
         </FeedRow>
 
         <FeedRow
+          compact={compact}
           tone="rose"
           title="감사 기록"
           description="감사 노트"
@@ -96,6 +118,7 @@ export function HomeDashboard({ feed }: { feed: HomeFeedData }): ReactElement {
         >
           {feed.gratitude ? (
             <FeedPreviewLink
+              compact={compact}
               href={`/gratitude/${feed.gratitude.id}`}
               tone="rose"
               meta={feed.gratitude.note_date}
@@ -104,6 +127,7 @@ export function HomeDashboard({ feed }: { feed: HomeFeedData }): ReactElement {
             />
           ) : (
             <FeedEmpty
+              compact={compact}
               tone="rose"
               message="아직 감사 노트가 없습니다."
               href="/gratitude/new"
@@ -117,6 +141,7 @@ export function HomeDashboard({ feed }: { feed: HomeFeedData }): ReactElement {
 }
 
 function FeedRow({
+  compact,
   tone,
   title,
   description,
@@ -125,6 +150,7 @@ function FeedRow({
   newHref,
   children,
 }: {
+  compact?: boolean;
   tone: HomeTone;
   title: string;
   description: string;
@@ -162,7 +188,13 @@ function FeedRow({
           </div>
         </div>
       </div>
-      <div className="min-h-[120px] min-w-0 flex-1 md:min-h-[100px]">{children}</div>
+      <div
+        className={
+          compact ? 'min-h-[96px] min-w-0 flex-1 md:min-h-[88px]' : 'min-h-[120px] min-w-0 flex-1 md:min-h-[100px]'
+        }
+      >
+        {children}
+      </div>
     </section>
   );
 }
@@ -173,18 +205,23 @@ function FeedPreviewLink({
   meta,
   title,
   body,
+  compact,
 }: {
   href: string;
   tone: HomeTone;
   meta: string;
   title: string;
   body: string;
+  compact?: boolean;
 }): ReactElement {
   const t = homeToneStyles[tone];
   return (
     <Link
       href={href}
-      className="group flex h-full min-h-[120px] flex-col justify-between rounded-xl border border-[var(--border)] bg-[var(--background)]/40 p-4 ring-1 ring-transparent transition-all hover:border-[var(--foreground)]/10 hover:bg-[var(--card)] hover:shadow-md hover:ring-[var(--foreground)]/5 dark:bg-[var(--foreground)]/[0.03] dark:hover:bg-[var(--card)]"
+      className={cn(
+        'group flex h-full flex-col justify-between rounded-xl border border-[var(--border)] bg-[var(--background)]/40 p-4 ring-1 ring-transparent transition-all hover:border-[var(--foreground)]/10 hover:bg-[var(--card)] hover:shadow-md hover:ring-[var(--foreground)]/5 dark:bg-[var(--foreground)]/[0.03] dark:hover:bg-[var(--card)]',
+        compact ? 'min-h-[96px]' : 'min-h-[120px]',
+      )}
     >
       <div>
         <p className="text-[11px] font-medium uppercase tracking-wider text-[var(--muted)]">{meta}</p>
@@ -207,11 +244,13 @@ function FeedPreviewLink({
 }
 
 function FeedEmpty({
+  compact,
   tone,
   message,
   href,
   actionLabel,
 }: {
+  compact?: boolean;
   tone: HomeTone;
   message: string;
   href: string;
@@ -219,7 +258,12 @@ function FeedEmpty({
 }): ReactElement {
   const t = homeToneStyles[tone];
   return (
-    <div className="flex h-full min-h-[120px] flex-col items-center justify-center rounded-xl border border-dashed border-[var(--border)] bg-[var(--background)]/30 px-4 py-6 text-center dark:bg-[var(--foreground)]/[0.02]">
+    <div
+      className={cn(
+        'flex h-full flex-col items-center justify-center rounded-xl border border-dashed border-[var(--border)] bg-[var(--background)]/30 px-4 py-6 text-center dark:bg-[var(--foreground)]/[0.02]',
+        compact ? 'min-h-[96px]' : 'min-h-[120px]',
+      )}
+    >
       <PlusCircle className={cn('mb-2 h-8 w-8', t.emptyIcon)} aria-hidden />
       <p className="text-sm text-[var(--muted)]">{message}</p>
       <Link

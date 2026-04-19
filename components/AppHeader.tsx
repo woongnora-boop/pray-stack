@@ -13,11 +13,11 @@ export async function AppHeader(): Promise<ReactElement> {
 
   return (
     <header className="sticky top-0 z-40 border-b border-[var(--border)] bg-[var(--card)]/85 backdrop-blur-md supports-[backdrop-filter]:bg-[var(--card)]/75">
-      <div className="mx-auto flex max-w-4xl items-center justify-between gap-4 px-4 py-3">
+      <div className="mx-auto flex max-w-lg items-center justify-between gap-4 px-4 py-3 md:max-w-2xl">
         <Link href="/" className="text-sm font-semibold tracking-tight text-[var(--foreground)] transition-opacity hover:opacity-80">
-          Pray Stack
+          말씀기도
         </Link>
-        <nav className="flex flex-wrap items-center gap-2 text-sm">
+        <nav className="hidden flex-wrap items-center gap-2 text-sm md:flex" aria-label="상단 메뉴">
           <Link className="rounded-md px-2 py-1 text-[var(--muted)] hover:bg-[var(--border)]/40 hover:text-[var(--foreground)]" href="/meditation">
             묵상
           </Link>

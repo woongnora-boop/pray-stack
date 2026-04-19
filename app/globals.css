@@ -7,6 +7,10 @@
   --border: #e5e5e5;
   --card: #ffffff;
   --accent: #171717;
+  /* 미니앱 포인트 (토스 계열 블루) */
+  --primary: #3182f6;
+  --primary-hover: #256dd4;
+  --primary-foreground: #ffffff;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -17,6 +21,9 @@
     --border: #262626;
     --card: #171717;
     --accent: #fafafa;
+    --primary: #4d9fff;
+    --primary-hover: #6bb0ff;
+    --primary-foreground: #ffffff;
   }
 }
 

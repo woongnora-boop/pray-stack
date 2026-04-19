@@ -61,7 +61,7 @@ export function ListPagePanel({ children, className }: { children: ReactNode; cl
   return <div className={cn(homeShellCardClass, className)}>{children}</div>;
 }
 
-export function listPrimaryLinkClass(_tone: HomeTone): string {
+export function listPrimaryLinkClass(): string {
   return cn(
     'inline-flex h-11 items-center justify-center rounded-full px-5 text-sm font-semibold transition-colors',
     'bg-[var(--foreground)] text-[var(--background)] hover:opacity-90',
