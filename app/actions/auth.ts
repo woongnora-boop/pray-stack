@@ -5,6 +5,7 @@ import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 
 import type { AuthActionState } from '@/app/actions/auth-types';
+import { persistSessionFromTokens } from '@/app/actions/auth-callback';
 import { createEmailSignUpClient } from '@/lib/supabase/email-signup-client';
 import { createClient } from '@/lib/supabase/server';
 import { pickSiteOriginForAuthEmail, safeRelativeNextPath } from '@/lib/site-url';
@@ -151,15 +152,19 @@ export async function signUp(
       };
     }
 
-    revalidatePath('/', 'layout');
-
-    /** Confirm email이 켜져 있으면 세션이 없고, 메일 인증 후에야 로그인할 수 있습니다. */
     const session = signUpData?.session ?? null;
     const confirmedEmail = signUpData?.user?.email ?? email;
 
-    if (session) {
+    /** Confirm email이 꺼져 있으면 세션이 옵니다. implicit 가입 클라이언트는 쿠키에 붙이지 않으므로 SSR 클라이언트로 옮깁니다. */
+    if (session?.access_token && session.refresh_token) {
+      const persisted = await persistSessionFromTokens(session.access_token, session.refresh_token);
+      if (!persisted.ok) {
+        return { success: false, error: persisted.error };
+      }
       redirect('/');
     }
+
+    revalidatePath('/', 'layout');
 
     return {
       success: true,
