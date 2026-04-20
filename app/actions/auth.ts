@@ -1,12 +1,13 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 
 import type { AuthActionState } from '@/app/actions/auth-types';
 import { createEmailSignUpClient } from '@/lib/supabase/email-signup-client';
 import { createClient } from '@/lib/supabase/server';
-import { getSiteOrigin, safeRelativeNextPath } from '@/lib/site-url';
+import { pickSiteOriginForAuthEmail, safeRelativeNextPath } from '@/lib/site-url';
 
 export type { AuthActionState } from '@/app/actions/auth-types';
 
@@ -114,7 +115,8 @@ export async function signUp(
   try {
     /** PKCE(server client)가 아닌 implicit 클라이언트 — 확인 메일을 다른 기기에서 열어도 세션을 맺을 수 있습니다. */
     const supabase = createEmailSignUpClient();
-    const origin = await getSiteOrigin();
+    const h = await headers();
+    const origin = pickSiteOriginForAuthEmail(h, String(formData.get('site_origin') ?? ''));
     const emailRedirectTo = `${origin}/auth/callback`;
     const { data: signUpData, error } = await supabase.auth.signUp({
       email,

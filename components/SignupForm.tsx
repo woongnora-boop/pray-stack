@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useActionState, type ReactElement } from 'react';
+import { useActionState, useEffect, useState, type ReactElement } from 'react';
 
 import type { AuthActionState } from '@/app/actions/auth-types';
 import { signUp } from '@/app/actions/auth';
@@ -31,6 +31,9 @@ function EmailVerificationStep({ email }: { email: string }): ReactElement {
         <p className="mt-2 text-xs leading-relaxed text-[var(--muted)]">
           도착까지 시간이 걸릴 수 있고, 스팸·프로모션함에 들어갈 수도 있어요.
         </p>
+        <p className="mt-2 text-xs leading-relaxed text-[var(--muted)]">
+          주소가 localhost인 경우, 인증 링크는 가입한 PC 브라우저에서 여세요. 휴대폰 메일 앱에서는 열리지 않을 수 있습니다. 휴대폰에서 끝까지 하려면 같은 Wi‑Fi의 PC IP(예: 192.168.0.10:3000)나 ngrok 주소로 접속한 뒤 가입하세요.
+        </p>
         <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-end">
           <Link
             href="/"
@@ -49,6 +52,11 @@ function EmailVerificationStep({ email }: { email: string }): ReactElement {
 
 export function SignupForm(): ReactElement {
   const [state, formAction, pending] = useActionState(signUp, null as AuthActionState | null);
+  const [siteOrigin, setSiteOrigin] = useState('');
+
+  useEffect(() => {
+    setSiteOrigin(typeof window !== 'undefined' ? window.location.origin : '');
+  }, []);
 
   if (state?.success && state.pendingVerification) {
     return <EmailVerificationStep email={state.email} />;
@@ -56,6 +64,7 @@ export function SignupForm(): ReactElement {
 
   return (
     <form action={formAction} className="space-y-4">
+      {siteOrigin ? <input type="hidden" name="site_origin" value={siteOrigin} /> : null}
       {state?.success === false ? (
         <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
           {state.error}
