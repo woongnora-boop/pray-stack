@@ -8,32 +8,110 @@ export function safeRelativeNextPath(raw: string | null | undefined): string {
   return t;
 }
 
-/**
- * 인증 메일 `emailRedirectTo` 등에 쓰는 공개 origin.
- * - 배포 시 `NEXT_PUBLIC_SITE_URL`을 `https://실제도메인`으로 두면 확인 메일에 올바른 주소가 들어갑니다.
- * - 미설정 시 현재 요청의 Host/Forwarded 헤더(Vercel 등) 또는 로컬 기본값을 사용합니다.
- */
-export async function getSiteOrigin(): Promise<string> {
-  const explicit = process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, '');
-  if (explicit) return explicit;
+type HeaderGet = { get(name: string): string | null };
 
-  const h = await headers();
+function trimTrailingSlash(url: string): string {
+  return url.trim().replace(/\/$/, '');
+}
+
+function protocolFromForwardedHeaders(h: HeaderGet): 'http' | 'https' {
+  const forwardedProto = h.get('x-forwarded-proto');
+  if (forwardedProto === 'http' || forwardedProto === 'https') {
+    return forwardedProto;
+  }
+  if (process.env.VERCEL) {
+    return 'https';
+  }
+  return 'http';
+}
+
+function originFromRequestHeaders(h: HeaderGet): string | null {
   const host = (h.get('x-forwarded-host') ?? h.get('host') ?? '').trim();
   if (host) {
-    const forwardedProto = h.get('x-forwarded-proto');
-    const proto =
-      forwardedProto === 'http' || forwardedProto === 'https'
-        ? forwardedProto
-        : process.env.VERCEL
-          ? 'https'
-          : 'http';
+    const proto = protocolFromForwardedHeaders(h);
     return `${proto}://${host}`;
   }
 
-  const vercelUrl = process.env.VERCEL_URL?.trim().replace(/^https?:\/\//, '');
-  if (vercelUrl) {
-    return `https://${vercelUrl}`;
+  const origin = h.get('origin')?.trim();
+  if (!origin) return null;
+  try {
+    const u = new URL(origin);
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+    return `${u.protocol}//${u.host}`;
+  } catch {
+    return null;
+  }
+}
+
+function originFromVercelSystemEnv(): string | null {
+  const raw = process.env.VERCEL_URL?.trim().replace(/^https?:\/\//, '');
+  if (raw) {
+    return `https://${raw}`;
+  }
+
+  if (process.env.VERCEL_ENV === 'production') {
+    const production = process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim().replace(/^https?:\/\//, '');
+    if (production) {
+      return `https://${production}`;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * 공개 사이트 origin (인증 메일 `emailRedirectTo`, 절대 URL 조합 등).
+ *
+ * 우선순위:
+ * 1. `NEXT_PUBLIC_SITE_URL` — Vercel·로컬에서 환경별로 명시하는 것이 가장 안전합니다.
+ * 2. 현재 요청 헤더 (`x-forwarded-host` / `host`, 없으면 `origin`) — 미설정 시 실제 접속 도메인을 반영합니다.
+ * 3. Vercel 런타임 변수 (`VERCEL_URL`, 프로덕션의 `VERCEL_PROJECT_PRODUCTION_URL`).
+ * 4. 로컬 개발 기본값 `http://localhost:3000` (Vercel이 아닐 때만).
+ */
+export function getResolvedSiteOrigin(headerStore?: HeaderGet): string {
+  const explicit = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (explicit) {
+    return trimTrailingSlash(explicit);
+  }
+
+  if (headerStore) {
+    const fromHeaders = originFromRequestHeaders(headerStore);
+    if (fromHeaders) {
+      return fromHeaders;
+    }
+  }
+
+  const fromVercel = originFromVercelSystemEnv();
+  if (fromVercel) {
+    return fromVercel;
+  }
+
+  if (!process.env.VERCEL) {
+    return 'http://localhost:3000';
   }
 
   return 'http://localhost:3000';
+}
+
+/**
+ * 서버 컴포넌트·Server Action 등에서 `headers()`와 함께 사용합니다.
+ */
+export async function getSiteOrigin(): Promise<string> {
+  const h = await headers();
+  return getResolvedSiteOrigin(h);
+}
+
+/**
+ * 클라이언트 컴포넌트에서 환경 변수가 없을 때 현재 탭의 origin을 사용합니다.
+ * (SSR 첫 페인트 시에는 `NEXT_PUBLIC_SITE_URL`만 쓰입니다.)
+ */
+export function getBrowserSiteOrigin(): string {
+  if (typeof window !== 'undefined') {
+    return window.location.origin;
+  }
+  const explicit = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (explicit) {
+    return trimTrailingSlash(explicit);
+  }
+  return '';
 }
