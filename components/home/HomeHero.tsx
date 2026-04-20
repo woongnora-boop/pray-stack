@@ -9,7 +9,7 @@ interface HomeHeroProps {
 export function HomeHero({ loggedIn }: HomeHeroProps): ReactElement {
   return (
     <header className={appCardClass}>
-      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">말씀기도</p>
+      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">Pray Stack</p>
       <h1 className="mt-2 text-2xl font-bold tracking-tight text-[var(--foreground)] md:text-3xl">홈</h1>
       <p className="mt-2 text-sm leading-relaxed text-[var(--muted)] md:text-base">
         {loggedIn

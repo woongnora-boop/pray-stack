@@ -2,16 +2,25 @@ import Link from 'next/link';
 import type { ReactElement } from 'react';
 
 import { signOut } from '@/app/actions/auth';
+import { getJourneyDashboardData } from '@/app/actions/journey-stats';
+import { parseJourneyWeekOffset } from '@/lib/journey-week';
+import { FaithFootprintsDashboard } from '@/components/journey/FaithFootprintsDashboard';
 import { appCardClass, appPrimaryButtonClass } from '@/components/ui/app-card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/server';
 
-export default async function MyPage(): Promise<ReactElement> {
+interface MyPageProps {
+  searchParams: Promise<{ week?: string }>;
+}
+
+export default async function MyPage({ searchParams }: MyPageProps): Promise<ReactElement> {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  const { week: weekParam } = await searchParams;
+  const weekOffset = user ? parseJourneyWeekOffset(weekParam) : 0;
 
   if (!user) {
     return (
@@ -38,11 +47,13 @@ export default async function MyPage(): Promise<ReactElement> {
     );
   }
 
+  const journey = await getJourneyDashboardData(weekOffset);
+
   return (
     <div className="space-y-6">
       <header>
         <h1 className="text-xl font-semibold tracking-tight text-[var(--foreground)]">마이</h1>
-        <p className="mt-1 text-sm text-[var(--muted)]">계정과 로그아웃</p>
+        <p className="mt-1 text-sm text-[var(--muted)]">계정과 활동 요약</p>
       </header>
       <div className={appCardClass}>
         <p className="text-xs font-medium uppercase tracking-wider text-[var(--muted)]">이메일</p>
@@ -53,6 +64,7 @@ export default async function MyPage(): Promise<ReactElement> {
           </Button>
         </form>
       </div>
+      {journey ? <FaithFootprintsDashboard data={journey} /> : null}
     </div>
   );
 }

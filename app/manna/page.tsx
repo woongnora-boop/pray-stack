@@ -33,7 +33,7 @@ export default async function MannaPage({ searchParams }: MannaPageProps): Promi
     <div className="space-y-8 md:space-y-10">
       <ListPageHero
         tone="sky"
-        label="말씀기도"
+        label="Pray Stack"
         title="만나"
         description="다시 보고 싶은 말씀을 카테고리별로 모아 두고, 날짜와 함께 찾아보세요."
         actions={

@@ -17,7 +17,7 @@ export default async function GratitudeListPage(): Promise<ReactElement> {
     <div className="space-y-8 md:space-y-10">
       <ListPageHero
         tone="rose"
-        label="말씀기도"
+        label="Pray Stack"
         title="감사노트"
         description="하루를 돌아보며 감사와 은혜를 날짜와 함께 남겨 보세요."
         actions={

@@ -19,8 +19,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: '말씀기도',
-  description: '묵상·말씀(만나)·감사를 한곳에 남기는 신앙 기록',
+  title: 'Pray Stack',
+  description: 'Pray Stack — 묵상·말씀(만나)·감사를 한곳에 남기는 신앙 기록',
 };
 
 export default function RootLayout({ children }: { children: ReactNode }): ReactElement {

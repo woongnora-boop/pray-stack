@@ -12,7 +12,7 @@ export function HomeGuestRecentHint(): ReactElement {
       </h2>
       <div className={appCardClass}>
         <p className="text-sm leading-relaxed text-[var(--muted)]">
-          로그인하면 홈에서 가장 최근 묵상·말씀·감사 노트를 한눈에 볼 수 있어요.
+          로그인하면 홈에서 가장 최근 묵상·만나·감사 노트를 한눈에 볼 수 있어요.
         </p>
         <Link href="/login" className={cn(appPrimaryButtonClass, 'mt-4 max-w-xs')}>
           로그인하고 이어가기
