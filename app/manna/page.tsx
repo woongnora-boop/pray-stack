@@ -7,7 +7,7 @@ import { AddCategoryForm } from '@/components/manna/AddCategoryForm';
 import { MannaCategoryChips } from '@/components/manna/MannaCategoryChips';
 import { MannaList } from '@/components/manna/MannaList';
 import { ListPageHero, ListPagePanel, listPrimaryLinkClass } from '@/components/layout/ListPageShell';
-import { createClient } from '@/lib/supabase/server';
+import { getServerAuth } from '@/lib/supabase/request-session';
 import { cn } from '@/lib/utils';
 
 interface MannaPageProps {
@@ -19,10 +19,7 @@ export default async function MannaPage({ searchParams }: MannaPageProps): Promi
   const parsed = z.string().uuid().safeParse(categoryParam);
   const filterCategoryId = parsed.success ? parsed.data : null;
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { user } = await getServerAuth();
 
   const [categories, entries] = await Promise.all([
     listMannaCategories(),

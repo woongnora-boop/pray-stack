@@ -31,6 +31,10 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
   return response;
 }
 
+/**
+ * Supabase SSR은 세션 갱신을 위해 넓은 matcher가 일반적입니다.
+ * 정적 자산만 제외하고, `pathnameRequiresLogin`으로 실제 리다이렉트는 새 글·수정 경로에만 적용합니다.
+ */
 export const config = {
   matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
 };

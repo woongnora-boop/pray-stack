@@ -1,23 +1,31 @@
 import type { ReactElement } from 'react';
+import { Suspense } from 'react';
 
 import { getHomeFeed } from '@/app/actions/home';
 import { HomeDashboard } from '@/components/home/HomeDashboard';
+import { HomeFeedSkeleton } from '@/components/home/HomeFeedSkeleton';
 import { HomeGuestRecentHint } from '@/components/home/HomeGuestRecentHint';
 import { HomeHero } from '@/components/home/HomeHero';
-import { createClient } from '@/lib/supabase/server';
+import { getServerAuth } from '@/lib/supabase/request-session';
+
+async function HomeAuthenticatedFeed(): Promise<ReactElement> {
+  const feed = await getHomeFeed();
+  return <HomeDashboard feed={feed} compact />;
+}
 
 export default async function HomePage(): Promise<ReactElement> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const feed = user ? await getHomeFeed() : null;
+  const { user } = await getServerAuth();
 
   return (
     <div className="space-y-6 md:space-y-8">
       <HomeHero loggedIn={!!user} />
-      {user && feed ? <HomeDashboard feed={feed} compact /> : <HomeGuestRecentHint />}
+      {user ? (
+        <Suspense fallback={<HomeFeedSkeleton />}>
+          <HomeAuthenticatedFeed />
+        </Suspense>
+      ) : (
+        <HomeGuestRecentHint />
+      )}
     </div>
   );
 }

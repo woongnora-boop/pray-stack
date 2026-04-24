@@ -1,26 +1,49 @@
 import Link from 'next/link';
-import type { ReactElement } from 'react';
+import type { ReactElement, ReactNode } from 'react';
+import { Suspense } from 'react';
 
 import { signOut } from '@/app/actions/auth';
-import { getJourneyDashboardData } from '@/app/actions/journey-stats';
-import { parseJourneyWeekOffset } from '@/lib/journey-week';
+import { getJourneyDashboardData, getJourneyMonthCalendarData } from '@/app/actions/journey-stats';
 import { FaithFootprintsDashboard } from '@/components/journey/FaithFootprintsDashboard';
+import { JourneyDashboardSkeleton } from '@/components/journey/JourneyDashboardSkeleton';
+import { JourneyMonthCalendar } from '@/components/journey/JourneyMonthCalendar';
 import { appCardClass, appPrimaryButtonClass } from '@/components/ui/app-card';
 import { Button } from '@/components/ui/button';
+import { parseJourneyMonthParam } from '@/lib/journey-month';
+import { parseJourneyWeekOffset } from '@/lib/journey-week';
+import { getServerAuth } from '@/lib/supabase/request-session';
 import { cn } from '@/lib/utils';
-import { createClient } from '@/lib/supabase/server';
 
 interface MyPageProps {
-  searchParams: Promise<{ week?: string }>;
+  searchParams: Promise<{ week?: string; month?: string }>;
+}
+
+async function MyJourneySection({
+  weekOffset,
+  year,
+  month,
+}: {
+  weekOffset: number;
+  year: number;
+  month: number;
+}): Promise<ReactNode> {
+  const [journey, monthCal] = await Promise.all([
+    getJourneyDashboardData(weekOffset),
+    getJourneyMonthCalendarData(year, month),
+  ]);
+  return (
+    <>
+      {journey ? <FaithFootprintsDashboard data={journey} monthYm={monthCal?.monthYm} /> : null}
+      {monthCal ? <JourneyMonthCalendar data={monthCal} weekOffset={weekOffset} /> : null}
+    </>
+  );
 }
 
 export default async function MyPage({ searchParams }: MyPageProps): Promise<ReactElement> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const { week: weekParam } = await searchParams;
+  const { user } = await getServerAuth();
+  const { week: weekParam, month: monthParam } = await searchParams;
   const weekOffset = user ? parseJourneyWeekOffset(weekParam) : 0;
+  const { year: calYear, month: calMonth } = user ? parseJourneyMonthParam(monthParam) : { year: 0, month: 0 };
 
   if (!user) {
     return (
@@ -47,8 +70,6 @@ export default async function MyPage({ searchParams }: MyPageProps): Promise<Rea
     );
   }
 
-  const journey = await getJourneyDashboardData(weekOffset);
-
   return (
     <div className="space-y-6">
       <header>
@@ -64,7 +85,9 @@ export default async function MyPage({ searchParams }: MyPageProps): Promise<Rea
           </Button>
         </form>
       </div>
-      {journey ? <FaithFootprintsDashboard data={journey} /> : null}
+      <Suspense fallback={<JourneyDashboardSkeleton />}>
+        <MyJourneySection weekOffset={weekOffset} year={calYear} month={calMonth} />
+      </Suspense>
     </div>
   );
 }

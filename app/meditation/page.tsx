@@ -4,14 +4,10 @@ import type { ReactElement } from 'react';
 import { listMeditationDays } from '@/app/actions/meditation';
 import { ListPageHero, ListPagePanel, listPrimaryLinkClass } from '@/components/layout/ListPageShell';
 import { MeditationList } from '@/components/meditation/MeditationList';
-import { createClient } from '@/lib/supabase/server';
+import { getServerAuth } from '@/lib/supabase/request-session';
 
 export default async function MeditationListPage(): Promise<ReactElement> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const days = await listMeditationDays();
+  const [{ user }, days] = await Promise.all([getServerAuth(), listMeditationDays()]);
 
   return (
     <div className="space-y-8 md:space-y-10">

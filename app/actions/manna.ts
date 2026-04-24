@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
 
-import { createClient } from '@/lib/supabase/server';
+import { getServerAuth, getServerSupabase } from '@/lib/supabase/request-session';
 import {
   mannaCategoryNameSchema,
   mannaEntryFormSchema,
@@ -92,7 +92,7 @@ type MannaDetailRow = {
 };
 
 async function assertCategoryOwnedByUser(userId: string, categoryId: string): Promise<boolean> {
-  const supabase = await createClient();
+  const supabase = await getServerSupabase();
   const { data } = await supabase
     .from('manna_categories')
     .select('id')
@@ -102,11 +102,14 @@ async function assertCategoryOwnedByUser(userId: string, categoryId: string): Pr
   return Boolean(data);
 }
 
+function categoryNameFromJoin(row: { manna_categories?: { name: string } | { name: string }[] | null }): string {
+  const c = row.manna_categories;
+  if (!c) return '';
+  return (Array.isArray(c) ? c[0]?.name : c.name) ?? '';
+}
+
 export async function listMannaCategories(): Promise<MannaCategoryRow[]> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { supabase, user } = await getServerAuth();
   if (!user) {
     return [];
   }
@@ -126,27 +129,28 @@ export async function listMannaCategories(): Promise<MannaCategoryRow[]> {
 }
 
 export async function listMannaEntries(filterCategoryId: string | null): Promise<MannaEntryListItem[]> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { supabase, user } = await getServerAuth();
   if (!user) {
     return [];
   }
 
-  const categories = await listMannaCategories();
-  const catMap = new Map(categories.map((c) => [c.id, c.name]));
-
-  const mapRows = (rows: MannaListRow[]): MannaEntryListItem[] =>
+  const mapJoinedRows = (
+    rows: (MannaListRow & { manna_categories?: { name: string } | { name: string }[] | null })[],
+  ): MannaEntryListItem[] =>
     rows.map((r) => ({
-      ...r,
+      id: r.id,
+      verse_reference: r.verse_reference,
+      verse_text: r.verse_text,
+      note: r.note,
+      category_id: r.category_id,
+      created_at: r.created_at,
       entry_date: entryDateFromRow(r),
-      category_name: catMap.get(r.category_id) ?? '',
+      category_name: categoryNameFromJoin(r),
     }));
 
   let query = supabase
     .from('manna_entries')
-    .select('id, verse_reference, verse_text, note, category_id, entry_date, created_at')
+    .select('id, verse_reference, verse_text, note, category_id, entry_date, created_at, manna_categories(name)')
     .eq('user_id', user.id)
     .order('entry_date', { ascending: false })
     .order('created_at', { ascending: false });
@@ -158,7 +162,7 @@ export async function listMannaEntries(filterCategoryId: string | null): Promise
   const { data: rows, error } = await query;
 
   if (!error && rows) {
-    return mapRows(rows as MannaListRow[]);
+    return mapJoinedRows(rows as (MannaListRow & { manna_categories?: { name: string } | { name: string }[] | null })[]);
   }
 
   if (error && !isMissingEntryDateColumnError(error)) {
@@ -167,7 +171,7 @@ export async function listMannaEntries(filterCategoryId: string | null): Promise
 
   let q2 = supabase
     .from('manna_entries')
-    .select('id, verse_reference, verse_text, note, category_id, created_at')
+    .select('id, verse_reference, verse_text, note, category_id, created_at, manna_categories(name)')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false });
 
@@ -181,25 +185,19 @@ export async function listMannaEntries(filterCategoryId: string | null): Promise
     return [];
   }
 
-  return mapRows(rows2 as MannaListRow[]);
+  return mapJoinedRows(rows2 as (MannaListRow & { manna_categories?: { name: string } | { name: string }[] | null })[]);
 }
 
-/** 홈 피드용: `entry_date` 컬럼 유무와 관계없이 최신 1건 */
+/** 홈 피드용: `entry_date` 컬럼 유무와 관계없이 최신 1건 (카테고리명은 조인으로 한 번에 조회) */
 export async function getLatestMannaEntryForHome(): Promise<MannaEntryListItem | null> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { supabase, user } = await getServerAuth();
   if (!user) {
     return null;
   }
 
-  const categories = await listMannaCategories();
-  const catMap = new Map(categories.map((c) => [c.id, c.name]));
-
   const q1 = await supabase
     .from('manna_entries')
-    .select('id, verse_reference, verse_text, note, category_id, created_at, entry_date')
+    .select('id, verse_reference, verse_text, note, category_id, created_at, entry_date, manna_categories(name)')
     .eq('user_id', user.id)
     .order('entry_date', { ascending: false })
     .order('created_at', { ascending: false })
@@ -207,7 +205,7 @@ export async function getLatestMannaEntryForHome(): Promise<MannaEntryListItem |
     .maybeSingle();
 
   if (!q1.error && q1.data) {
-    const r = q1.data as MannaListRow;
+    const r = q1.data as MannaListRow & { manna_categories?: { name: string } | { name: string }[] | null };
     return {
       id: r.id,
       verse_reference: r.verse_reference,
@@ -216,7 +214,7 @@ export async function getLatestMannaEntryForHome(): Promise<MannaEntryListItem |
       category_id: r.category_id,
       created_at: r.created_at,
       entry_date: entryDateFromRow(r),
-      category_name: catMap.get(r.category_id) ?? '',
+      category_name: categoryNameFromJoin(r),
     };
   }
 
@@ -226,7 +224,7 @@ export async function getLatestMannaEntryForHome(): Promise<MannaEntryListItem |
 
   const q2 = await supabase
     .from('manna_entries')
-    .select('id, verse_reference, verse_text, note, category_id, created_at')
+    .select('id, verse_reference, verse_text, note, category_id, created_at, manna_categories(name)')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
     .limit(1)
@@ -236,7 +234,7 @@ export async function getLatestMannaEntryForHome(): Promise<MannaEntryListItem |
     return null;
   }
 
-  const r = q2.data as MannaListRow;
+  const r = q2.data as MannaListRow & { manna_categories?: { name: string } | { name: string }[] | null };
   return {
     id: r.id,
     verse_reference: r.verse_reference,
@@ -245,39 +243,40 @@ export async function getLatestMannaEntryForHome(): Promise<MannaEntryListItem |
     category_id: r.category_id,
     created_at: r.created_at,
     entry_date: entryDateFromRow(r),
-    category_name: catMap.get(r.category_id) ?? '',
+    category_name: categoryNameFromJoin(r),
   };
 }
 
 export async function getMannaEntry(entryId: string): Promise<MannaEntryDetail | null> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { supabase, user } = await getServerAuth();
   if (!user) {
     return null;
   }
 
-  let row: MannaDetailRow | null = null;
+  let row: (MannaDetailRow & { manna_categories?: { name: string } | { name: string }[] | null }) | null = null;
 
   const primary = await supabase
     .from('manna_entries')
-    .select('id, verse_reference, verse_text, note, category_id, entry_date, created_at, updated_at')
+    .select(
+      'id, verse_reference, verse_text, note, category_id, entry_date, created_at, updated_at, manna_categories(name)',
+    )
     .eq('id', entryId)
     .eq('user_id', user.id)
     .maybeSingle();
 
   if (!primary.error && primary.data) {
-    row = primary.data as MannaDetailRow;
+    row = primary.data as MannaDetailRow & { manna_categories?: { name: string } | { name: string }[] | null };
   } else if (primary.error && isMissingEntryDateColumnError(primary.error)) {
     const fb = await supabase
       .from('manna_entries')
-      .select('id, verse_reference, verse_text, note, category_id, created_at, updated_at')
+      .select(
+        'id, verse_reference, verse_text, note, category_id, created_at, updated_at, manna_categories(name)',
+      )
       .eq('id', entryId)
       .eq('user_id', user.id)
       .maybeSingle();
     if (!fb.error && fb.data) {
-      row = fb.data as MannaDetailRow;
+      row = fb.data as MannaDetailRow & { manna_categories?: { name: string } | { name: string }[] | null };
     }
   }
 
@@ -285,16 +284,8 @@ export async function getMannaEntry(entryId: string): Promise<MannaEntryDetail |
     return null;
   }
 
-  const typed: MannaDetailRow = row;
-
-  const { data: cat } = await supabase
-    .from('manna_categories')
-    .select('name')
-    .eq('id', typed.category_id)
-    .eq('user_id', user.id)
-    .maybeSingle();
-
-  const categoryName = (cat as { name: string } | null)?.name ?? '';
+  const typed = row;
+  const categoryName = categoryNameFromJoin(typed);
 
   return {
     id: typed.id,
@@ -322,10 +313,7 @@ export async function createMannaEntry(
     };
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { supabase, user } = await getServerAuth();
   if (!user) {
     return { success: false, error: '로그인이 필요합니다.' };
   }
@@ -381,10 +369,7 @@ export async function updateMannaEntry(
     };
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { supabase, user } = await getServerAuth();
   if (!user) {
     return { success: false, error: '로그인이 필요합니다.' };
   }
@@ -442,10 +427,7 @@ export async function updateMannaEntry(
 }
 
 export async function deleteMannaEntry(entryId: string): Promise<MannaActionState> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { supabase, user } = await getServerAuth();
   if (!user) {
     return { success: false, error: '로그인이 필요합니다.' };
   }
@@ -500,10 +482,7 @@ export async function createMannaCategory(
     };
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { supabase, user } = await getServerAuth();
   if (!user) {
     return { success: false, error: '로그인이 필요합니다.' };
   }

@@ -4,14 +4,10 @@ import type { ReactElement } from 'react';
 import { listGratitudeNotes } from '@/app/actions/gratitude';
 import { GratitudeList } from '@/components/gratitude/GratitudeList';
 import { ListPageHero, ListPagePanel, listPrimaryLinkClass } from '@/components/layout/ListPageShell';
-import { createClient } from '@/lib/supabase/server';
+import { getServerAuth } from '@/lib/supabase/request-session';
 
 export default async function GratitudeListPage(): Promise<ReactElement> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const notes = await listGratitudeNotes();
+  const [{ user }, notes] = await Promise.all([getServerAuth(), listGratitudeNotes()]);
 
   return (
     <div className="space-y-8 md:space-y-10">

@@ -2,13 +2,10 @@ import Link from 'next/link';
 import type { ReactElement } from 'react';
 
 import { SignupForm } from '@/components/SignupForm';
-import { createClient } from '@/lib/supabase/server';
+import { getServerAuth } from '@/lib/supabase/request-session';
 
 export default async function SignupPage(): Promise<ReactElement> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { user } = await getServerAuth();
 
   if (user) {
     return (

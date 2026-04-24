@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
 
-import { createClient } from '@/lib/supabase/server';
+import { getServerAuth } from '@/lib/supabase/request-session';
 import { meditationFormSchema, type MeditationFormValues } from '@/lib/validations/meditation';
 import type { MeditationCategoryType } from '@/types/database';
 
@@ -50,52 +50,35 @@ function excerptMeditationContent(text: string, max: number): string {
   return `${t.slice(0, max)}…`;
 }
 
-export async function listMeditationDays(): Promise<MeditationDayListItem[]> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return [];
-  }
-
-  const { data: days, error } = await supabase
-    .from('meditation_days')
-    .select('id, meditation_date')
-    .eq('user_id', user.id)
-    .order('meditation_date', { ascending: false });
-
-  if (error || !days) {
-    return [];
-  }
-
-  const dayRows = days as { id: string; meditation_date: string }[];
-
-  const { data: itemRows } = await supabase
-    .from('meditation_items')
-    .select('day_id, verse_reference, title, content, sort_order')
-    .eq('user_id', user.id);
-
-  type ItemRow = {
-    day_id: string;
+type NestedMeditationDayRow = {
+  id: string;
+  meditation_date: string;
+  meditation_items: {
     verse_reference: string;
     title: string;
     content: string;
     sort_order: number;
-  };
+  }[];
+};
 
-  const byDay = new Map<string, ItemRow[]>();
-  for (const raw of (itemRows ?? []) as ItemRow[]) {
-    const list = byDay.get(raw.day_id) ?? [];
-    list.push(raw);
-    byDay.set(raw.day_id, list);
-  }
-  for (const list of byDay.values()) {
-    list.sort((a, b) => a.sort_order - b.sort_order);
+export async function listMeditationDays(): Promise<MeditationDayListItem[]> {
+  const { supabase, user } = await getServerAuth();
+  if (!user) {
+    return [];
   }
 
-  return dayRows.map((d) => {
-    const items = byDay.get(d.id) ?? [];
+  const { data: rows, error } = await supabase
+    .from('meditation_days')
+    .select('id, meditation_date, meditation_items(verse_reference, title, content, sort_order)')
+    .eq('user_id', user.id)
+    .order('meditation_date', { ascending: false });
+
+  if (error || !rows) {
+    return [];
+  }
+
+  return (rows as NestedMeditationDayRow[]).map((d) => {
+    const items = [...(d.meditation_items ?? [])].sort((a, b) => a.sort_order - b.sort_order);
     const first = items[0];
     return {
       id: d.id,
@@ -109,10 +92,7 @@ export async function listMeditationDays(): Promise<MeditationDayListItem[]> {
 }
 
 export async function getMeditationDay(dayId: string): Promise<MeditationDayDetail | null> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { supabase, user } = await getServerAuth();
   if (!user) {
     return null;
   }
@@ -174,10 +154,7 @@ export async function createMeditation(
     };
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { supabase, user } = await getServerAuth();
   if (!user) {
     return { success: false, error: '로그인이 필요합니다.' };
   }
@@ -244,10 +221,7 @@ export async function updateMeditation(
     };
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { supabase, user } = await getServerAuth();
   if (!user) {
     return { success: false, error: '로그인이 필요합니다.' };
   }
@@ -344,10 +318,7 @@ export async function submitMeditationForm(
 }
 
 export async function deleteMeditation(dayId: string): Promise<MeditationActionState> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { supabase, user } = await getServerAuth();
   if (!user) {
     return { success: false, error: '로그인이 필요합니다.' };
   }

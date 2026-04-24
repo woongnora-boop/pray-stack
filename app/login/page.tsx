@@ -3,7 +3,7 @@ import type { ReactElement } from 'react';
 
 import { LoginForm } from '@/components/LoginForm';
 import { safeRelativeNextPath } from '@/lib/site-url';
-import { createClient } from '@/lib/supabase/server';
+import { getServerAuth } from '@/lib/supabase/request-session';
 
 interface LoginPageProps {
   searchParams: Promise<{ next?: string; auth_error?: string }>;
@@ -14,10 +14,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps): Promi
   const defaultNext = safeRelativeNextPath(params.next);
   const authLinkError = typeof params.auth_error === 'string' ? params.auth_error.replace(/\+/g, ' ') : null;
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { user } = await getServerAuth();
 
   if (user) {
     return (

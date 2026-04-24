@@ -1,49 +1,13 @@
-'use client';
-
 import { Activity, ChevronLeft, ChevronRight, Tags, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
 import type { ReactElement } from 'react';
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
 
-import type { FaithWordItem, JourneyDashboardData, JourneyDayBucket } from '@/app/actions/journey-stats';
+import type { FaithWordItem, JourneyDashboardData } from '@/app/actions/journey-stats';
+import { FaithFootprintsBarChartLoader } from '@/components/journey/FaithFootprintsBarChartLoader';
 import { homeShellCardClass } from '@/components/home/homeTones';
+import { journeyMyQueryString, seoulYmToday } from '@/lib/journey-month';
 import { JOURNEY_MIN_WEEK_OFFSET } from '@/lib/journey-week';
 import { cn } from '@/lib/utils';
-
-type ChartRow = JourneyDayBucket & { name: string };
-
-function toChartRows(days: JourneyDayBucket[]): ChartRow[] {
-  return days.map((d) => ({ ...d, name: d.label }));
-}
-
-function JourneyTooltip({
-  active,
-  payload,
-}: {
-  active?: boolean;
-  payload?: { payload: ChartRow }[];
-}): ReactElement | null {
-  if (!active || !payload?.length) return null;
-  const row = payload[0]?.payload;
-  if (!row) return null;
-  return (
-    <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-xs shadow-lg">
-      <p className="font-semibold text-[var(--foreground)]">
-        {row.label}요일 · {row.ymd}
-      </p>
-      <p className="mt-0.5 text-[var(--muted)]">기록 {row.count}건</p>
-    </div>
-  );
-}
 
 function FaithWordCloud({ words }: { words: FaithWordItem[] }): ReactElement {
   if (words.length === 0) {
@@ -84,18 +48,23 @@ function FaithWordCloud({ words }: { words: FaithWordItem[] }): ReactElement {
   );
 }
 
-function weekNavHref(nextOffset: number): string {
-  if (nextOffset === 0) return '/my';
-  return `/my?week=${nextOffset}`;
+function weekNavHref(nextOffset: number, monthYm: string): string {
+  return `/my?${journeyMyQueryString(nextOffset, monthYm)}`;
 }
 
 const navPillClass =
   'inline-flex h-10 min-w-[2.75rem] items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)] transition-colors hover:border-[var(--primary)]/40 hover:bg-[var(--primary)]/5 disabled:pointer-events-none disabled:opacity-35';
 
-export function FaithFootprintsDashboard({ data }: { data: JourneyDashboardData }): ReactElement {
-  const chartData = toChartRows(data.days);
-  const maxBar = Math.max(1, ...data.days.map((d) => d.count));
+export function FaithFootprintsDashboard({
+  data,
+  monthYm,
+}: {
+  data: JourneyDashboardData;
+  /** 월 달력과 동일한 `YYYY-MM`을 유지해 주간 이전/다음 이동 시 달력 월이 바뀌지 않게 함 */
+  monthYm?: string;
+}): ReactElement {
   const { weekOffset, highlightDayIndex } = data;
+  const ym = monthYm ?? seoulYmToday();
   const canPrev = weekOffset > JOURNEY_MIN_WEEK_OFFSET;
   const canNext = weekOffset < 0;
 
@@ -129,7 +98,7 @@ export function FaithFootprintsDashboard({ data }: { data: JourneyDashboardData 
             <p className="text-center text-sm font-semibold text-[var(--foreground)] sm:text-left">{data.weekRangeLabel}</p>
             <div className="flex items-center justify-center gap-2 sm:justify-end">
               {canPrev ? (
-                <Link href={weekNavHref(weekOffset - 1)} className={navPillClass} scroll={false}>
+                <Link href={weekNavHref(weekOffset - 1, ym)} className={navPillClass} scroll={false}>
                   <ChevronLeft className="h-5 w-5" aria-hidden />
                   <span className="sr-only">이전 주</span>
                 </Link>
@@ -143,7 +112,7 @@ export function FaithFootprintsDashboard({ data }: { data: JourneyDashboardData 
                 {weekOffset === 0 ? '이번 주' : weekOffset < 0 ? `${Math.abs(weekOffset)}주 전` : ''}
               </span>
               {canNext ? (
-                <Link href={weekNavHref(weekOffset + 1)} className={navPillClass} scroll={false}>
+                <Link href={weekNavHref(weekOffset + 1, ym)} className={navPillClass} scroll={false}>
                   <ChevronRight className="h-5 w-5" aria-hidden />
                   <span className="sr-only">다음 주</span>
                 </Link>
@@ -159,53 +128,30 @@ export function FaithFootprintsDashboard({ data }: { data: JourneyDashboardData 
       </div>
 
       <div className="space-y-8 px-4 py-6 md:px-6 md:py-8">
+        <div
+          className="-mt-2 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 border-b border-[var(--border)]/80 pb-5 text-xs text-[var(--muted)] sm:justify-start"
+          aria-label="이번 주 유형별 기록 수"
+        >
+          <span className="inline-flex items-center gap-1.5 tabular-nums">
+            <span className="h-2 w-2 shrink-0 rounded-full bg-amber-600 dark:bg-amber-400" aria-hidden />
+            묵상 <strong className="text-[var(--foreground)]">{data.weekByType.meditation}</strong>건
+          </span>
+          <span className="inline-flex items-center gap-1.5 tabular-nums">
+            <span className="h-2 w-2 shrink-0 rounded-full bg-sky-600 dark:bg-sky-400" aria-hidden />
+            만나 <strong className="text-[var(--foreground)]">{data.weekByType.manna}</strong>건
+          </span>
+          <span className="inline-flex items-center gap-1.5 tabular-nums">
+            <span className="h-2 w-2 shrink-0 rounded-full bg-rose-600 dark:bg-rose-400" aria-hidden />
+            감사 <strong className="text-[var(--foreground)]">{data.weekByType.gratitude}</strong>건
+          </span>
+        </div>
+
         <div>
           <div className="mb-4 flex items-center gap-2">
             <Activity className="h-4 w-4 text-[var(--primary)]" aria-hidden />
             <h3 className="text-sm font-semibold text-[var(--foreground)]">요일별 기록 수</h3>
           </div>
-          <div className="rounded-2xl border border-[var(--border)] bg-gradient-to-b from-[var(--background)]/80 to-[var(--card)] px-2 pb-4 pt-5 md:px-4">
-            <div className="h-[200px] w-full md:h-[220px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} margin={{ top: 8, right: 8, left: -8, bottom: 0 }} barCategoryGap="18%">
-                  <CartesianGrid strokeDasharray="4 8" vertical={false} stroke="var(--border)" opacity={0.85} />
-                  <XAxis
-                    dataKey="name"
-                    tickLine={false}
-                    axisLine={false}
-                    tick={{ fill: 'var(--muted)', fontSize: 12, fontWeight: 500 }}
-                    dy={6}
-                  />
-                  <YAxis
-                    allowDecimals={false}
-                    width={32}
-                    tickLine={false}
-                    axisLine={false}
-                    tick={{ fill: 'var(--muted)', fontSize: 11 }}
-                    domain={[0, maxBar]}
-                  />
-                  <Tooltip content={<JourneyTooltip />} cursor={{ fill: 'var(--foreground)', opacity: 0.04 }} />
-                  <Bar dataKey="count" radius={[10, 10, 4, 4]} maxBarSize={44}>
-                    {chartData.map((entry, index) => (
-                      <Cell
-                        key={entry.ymd}
-                        fill={
-                          entry.count === 0
-                            ? 'color-mix(in srgb, var(--muted) 35%, transparent)'
-                            : highlightDayIndex !== null && index === highlightDayIndex
-                              ? 'var(--primary)'
-                              : 'color-mix(in srgb, var(--primary) 82%, var(--foreground) 18%)'
-                        }
-                      />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-            <p className="mt-1 px-2 text-center text-[11px] text-[var(--muted)]">
-              묵상 일지·만나·감사 노트가 있는 날을 각각 1건으로 세었어요. (서울 기준 월~일)
-            </p>
-          </div>
+          <FaithFootprintsBarChartLoader days={data.days} highlightDayIndex={highlightDayIndex} />
         </div>
 
         <div>

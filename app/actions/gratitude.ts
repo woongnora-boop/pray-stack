@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
 
-import { createClient } from '@/lib/supabase/server';
+import { getServerAuth } from '@/lib/supabase/request-session';
 import { gratitudeNoteFormSchema, type GratitudeNoteFormValues } from '@/lib/validations/gratitude';
 
 export type GratitudeActionState =
@@ -38,10 +38,7 @@ function zodFieldErrors(error: z.ZodError): Record<string, string[] | undefined>
 }
 
 export async function listGratitudeNotes(): Promise<GratitudeNoteListItem[]> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { supabase, user } = await getServerAuth();
   if (!user) {
     return [];
   }
@@ -61,10 +58,7 @@ export async function listGratitudeNotes(): Promise<GratitudeNoteListItem[]> {
 }
 
 export async function getGratitudeNote(noteId: string): Promise<GratitudeNoteDetail | null> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { supabase, user } = await getServerAuth();
   if (!user) {
     return null;
   }
@@ -96,10 +90,7 @@ export async function createGratitudeNote(
     };
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { supabase, user } = await getServerAuth();
   if (!user) {
     return { success: false, error: '로그인이 필요합니다.' };
   }
@@ -138,10 +129,7 @@ export async function updateGratitudeNote(
     };
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { supabase, user } = await getServerAuth();
   if (!user) {
     return { success: false, error: '로그인이 필요합니다.' };
   }
@@ -179,10 +167,7 @@ export async function updateGratitudeNote(
 }
 
 export async function deleteGratitudeNote(noteId: string): Promise<GratitudeActionState> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { supabase, user } = await getServerAuth();
   if (!user) {
     return { success: false, error: '로그인이 필요합니다.' };
   }
