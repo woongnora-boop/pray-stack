@@ -3,6 +3,7 @@ import type { ReactElement, ReactNode } from 'react';
 import { Suspense } from 'react';
 
 import { signOut } from '@/app/actions/auth';
+import { getMyBibleBooksActivity } from '@/app/actions/bible-books-coverage';
 import { getJourneyDashboardData, getJourneyMonthCalendarData } from '@/app/actions/journey-stats';
 import { FaithFootprintsDashboard } from '@/components/journey/FaithFootprintsDashboard';
 import { JourneyDashboardSkeleton } from '@/components/journey/JourneyDashboardSkeleton';
@@ -27,13 +28,16 @@ async function MyJourneySection({
   year: number;
   month: number;
 }): Promise<ReactNode> {
-  const [journey, monthCal] = await Promise.all([
+  const [journey, monthCal, bibleBooks] = await Promise.all([
     getJourneyDashboardData(weekOffset),
     getJourneyMonthCalendarData(year, month),
+    getMyBibleBooksActivity(),
   ]);
   return (
     <>
-      {journey ? <FaithFootprintsDashboard data={journey} monthYm={monthCal?.monthYm} /> : null}
+      {journey ? (
+        <FaithFootprintsDashboard data={journey} monthYm={monthCal?.monthYm} bibleBooksActivity={bibleBooks} />
+      ) : null}
       {monthCal ? <JourneyMonthCalendar data={monthCal} weekOffset={weekOffset} /> : null}
     </>
   );

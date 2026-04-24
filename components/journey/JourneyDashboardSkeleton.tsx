@@ -50,14 +50,15 @@ export function JourneyDashboardSkeleton(): ReactElement {
           <div>
             <div className="mb-4 flex items-center gap-2">
               <div className="h-4 w-4 animate-pulse rounded bg-[var(--primary)]/30" />
-              <div className="h-3.5 w-36 animate-pulse rounded-md bg-[var(--foreground)]/10" />
+              <div className="h-3.5 w-40 animate-pulse rounded-md bg-[var(--foreground)]/10" />
             </div>
-            <div className="flex flex-wrap justify-center gap-2 px-1 py-4">
-              {Array.from({ length: 12 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="h-8 w-[4.5rem] max-w-full animate-pulse rounded-full border border-[var(--border)] bg-[var(--foreground)]/[0.06]"
-                />
+            <div className="mb-2 h-3 w-full max-w-md animate-pulse rounded bg-[var(--foreground)]/8" />
+            <div
+              className="grid gap-[3px] rounded-lg border border-[var(--border)] bg-[var(--card)]/40 p-2"
+              style={{ gridTemplateColumns: 'repeat(11, minmax(0, 1fr))' }}
+            >
+              {Array.from({ length: 66 }).map((_, i) => (
+                <div key={i} className="aspect-square max-h-8 animate-pulse rounded-[3px] bg-[var(--foreground)]/[0.06]" />
               ))}
             </div>
           </div>

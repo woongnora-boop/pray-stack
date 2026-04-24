@@ -1,52 +1,15 @@
-import { Activity, ChevronLeft, ChevronRight, Tags, TrendingUp } from 'lucide-react';
+import { Activity, ChevronLeft, ChevronRight, LayoutGrid, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
 import type { ReactElement } from 'react';
 
-import type { FaithWordItem, JourneyDashboardData } from '@/app/actions/journey-stats';
+import type { BibleBooksActivityRow } from '@/app/actions/bible-books-coverage';
+import type { JourneyDashboardData } from '@/app/actions/journey-stats';
+import { BibleBooksHeatmap } from '@/components/journey/BibleBooksHeatmap';
 import { FaithFootprintsBarChartLoader } from '@/components/journey/FaithFootprintsBarChartLoader';
 import { homeShellCardClass } from '@/components/home/homeTones';
 import { journeyMyQueryString, seoulYmToday } from '@/lib/journey-month';
 import { JOURNEY_MIN_WEEK_OFFSET } from '@/lib/journey-week';
 import { cn } from '@/lib/utils';
-
-function FaithWordCloud({ words }: { words: FaithWordItem[] }): ReactElement {
-  if (words.length === 0) {
-    return (
-      <p className="rounded-xl border border-dashed border-[var(--border)] bg-[var(--background)]/40 px-4 py-10 text-center text-sm text-[var(--muted)] dark:bg-[var(--foreground)]/[0.02]">
-        이 주에는 추출할 만한 단어가 거의 없어요. 묵상·만나·감사에 문장을 남겨 보세요.
-      </p>
-    );
-  }
-
-  return (
-    <div className="flex flex-wrap content-center justify-center gap-x-2 gap-y-3 px-1 py-2 md:gap-x-3 md:gap-y-4">
-      {words.map((w) => {
-        const size =
-          w.weight >= 0.85 ? 'text-base md:text-lg' : w.weight >= 0.55 ? 'text-sm md:text-base' : 'text-xs md:text-sm';
-        const pad = w.weight >= 0.85 ? 'px-3.5 py-1.5' : w.weight >= 0.55 ? 'px-3 py-1' : 'px-2.5 py-0.5';
-        const opacity = 0.45 + w.weight * 0.5;
-        return (
-          <span
-            key={w.text}
-            title={`${w.count}회`}
-            className={cn(
-              'inline-flex max-w-full items-center rounded-full border border-[var(--border)] font-medium tracking-tight text-[var(--foreground)] transition-transform hover:scale-[1.02]',
-              size,
-              pad,
-            )}
-            style={{
-              opacity,
-              background: `color-mix(in srgb, var(--primary) ${Math.round(8 + w.weight * 18)}%, var(--card))`,
-              borderColor: `color-mix(in srgb, var(--primary) ${Math.round(15 + w.weight * 35)}%, var(--border))`,
-            }}
-          >
-            <span className="truncate">{w.text}</span>
-          </span>
-        );
-      })}
-    </div>
-  );
-}
 
 function weekNavHref(nextOffset: number, monthYm: string): string {
   return `/my?${journeyMyQueryString(nextOffset, monthYm)}`;
@@ -58,10 +21,12 @@ const navPillClass =
 export function FaithFootprintsDashboard({
   data,
   monthYm,
+  bibleBooksActivity,
 }: {
   data: JourneyDashboardData;
   /** 월 달력과 동일한 `YYYY-MM`을 유지해 주간 이전/다음 이동 시 달력 월이 바뀌지 않게 함 */
   monthYm?: string;
+  bibleBooksActivity: BibleBooksActivityRow[];
 }): ReactElement {
   const { weekOffset, highlightDayIndex } = data;
   const ym = monthYm ?? seoulYmToday();
@@ -81,7 +46,7 @@ export function FaithFootprintsDashboard({
                 <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--muted)]">신앙의 발자취</p>
                 <h2 className="mt-1 text-lg font-bold tracking-tight text-[var(--foreground)] md:text-xl">활동 요약</h2>
                 <p className="mt-1 max-w-md text-sm leading-relaxed text-[var(--muted)]">
-                  선택한 주의 묵상·만나·감사를 모았어요. 자주 쓴 단어로 그때의 기도를 떠올려 보세요.
+                  선택한 주의 묵상·만나·감사를 모았어요. 아래 격자는 전체 기간 동안 성경 구절로 남긴 권별 기록이에요.
                 </p>
               </div>
             </div>
@@ -156,10 +121,13 @@ export function FaithFootprintsDashboard({
 
         <div>
           <div className="mb-4 flex items-center gap-2">
-            <Tags className="h-4 w-4 text-[var(--primary)]" aria-hidden />
-            <h3 className="text-sm font-semibold text-[var(--foreground)]">이 주의 믿음의 단어</h3>
+            <LayoutGrid className="h-4 w-4 text-[var(--primary)]" aria-hidden />
+            <h3 className="text-sm font-semibold text-[var(--foreground)]">성경 66권 기록 맵</h3>
           </div>
-          <FaithWordCloud words={data.faithWords} />
+          <p className="mb-3 text-xs leading-relaxed text-[var(--muted)]">
+            묵상·만나에 저장한 성경 구절(`책 장:절`)에서 권을 인식합니다. 마우스를 올리면 권 이름을 볼 수 있어요.
+          </p>
+          <BibleBooksHeatmap rows={bibleBooksActivity} />
         </div>
       </div>
     </section>

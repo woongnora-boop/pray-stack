@@ -4,6 +4,7 @@ import type { ReactElement } from 'react';
 
 import type { MeditationCategoryType } from '@/types/database';
 
+import { BibleChapterViewer } from '@/components/bible/BibleChapterViewer';
 import { BibleVersePickerKRV } from '@/components/bible/bible-verse-picker';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -93,6 +94,17 @@ export function MeditationItemBlock({
           <p className="text-sm text-red-600">{itemFieldError(fieldErrors, index, 'verse_reference')}</p>
         ) : null}
       </div>
+
+      <BibleChapterViewer
+        syncFromReference={value.verse_reference}
+        onApplyBody={(plain) => {
+          onChange({
+            ...value,
+            content: value.content.trim() ? `${value.content.trim()}\n\n${plain}` : plain,
+          });
+        }}
+        onClearBody={() => onChange({ ...value, content: '' })}
+      />
 
       <div className="space-y-2">
         <Label htmlFor={`block-${index}-title`}>묵상 제목</Label>

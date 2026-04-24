@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 
 import type { MannaActionState, MannaCategoryRow } from '@/app/actions/manna';
 import { submitMannaEntryForm } from '@/app/actions/manna';
+import { BibleChapterViewer } from '@/components/bible/BibleChapterViewer';
 import { BibleVersePickerKRV } from '@/components/bible/bible-verse-picker';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -80,7 +81,7 @@ export function MannaForm({ mode, entryId, categories, initialValues }: MannaFor
       <div className="space-y-2">
         <h2 className="text-xl font-semibold tracking-tight">{mode === 'create' ? '말씀 추가' : '말씀 수정'}</h2>
         <p className="text-sm text-[var(--muted)]">
-          개역개정 성경 구절을 선택하거나 직접 입력하고, 본문과 카테고리를 입력합니다.
+          구절 참조는 개역개정 기준 선택기(`책 장:절`)로 고르거나 직접 수정할 수 있습니다. 아래 개역한글 뷰어는 그 문자열과 책·장을 맞추고, 범위가 있으면 해당 절만 본문에 넣을 수 있습니다.
         </p>
       </div>
 
@@ -102,6 +103,17 @@ export function MannaForm({ mode, entryId, categories, initialValues }: MannaFor
         <BibleVersePickerKRV value={verseReference} onChange={setVerseReference} />
         {verseRefErr ? <p className="text-sm text-red-600">{verseRefErr}</p> : null}
       </div>
+
+      <BibleChapterViewer
+        syncFromReference={verseReference}
+        onApplyBody={(plain) => {
+          setVerseText((prev) => {
+            const p = prev.trim();
+            return p ? `${p}\n\n${plain}` : plain;
+          });
+        }}
+        onClearBody={() => setVerseText('')}
+      />
 
       <div className="space-y-2">
         <Label htmlFor="verse_text">말씀 본문</Label>

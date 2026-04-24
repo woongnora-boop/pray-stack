@@ -5,70 +5,6 @@ import { getServerAuth } from '@/lib/supabase/request-session';
 
 const SEOUL = 'Asia/Seoul';
 
-const KOREAN_STOPWORDS = new Set([
-  '그리고',
-  '그런',
-  '그래서',
-  '그냥',
-  '그때',
-  '이런',
-  '저런',
-  '어떤',
-  '무엇',
-  '있는',
-  '없는',
-  '같은',
-  '다른',
-  '모든',
-  '정말',
-  '너무',
-  '매우',
-  '아주',
-  '오늘',
-  '내일',
-  '어제',
-  '우리',
-  '나의',
-  '저의',
-  '것을',
-  '것이',
-  '수가',
-  '때문',
-  '대한',
-  '위해',
-  '있다',
-  '없다',
-  '한다',
-  '된다',
-  '이다',
-  '아니',
-  '하지',
-  '그렇',
-  '이렇',
-  '저렇',
-  '그것',
-  '이것',
-  '저것',
-  '여기',
-  '거기',
-  '저기',
-  '때에',
-  '중에',
-  '으로',
-  '에서',
-  '까지',
-  '부터',
-  '보다',
-  '밖에',
-  '만큼',
-  '처럼',
-  '같이',
-  '함께',
-  '혹은',
-  '또는',
-  '및',
-]);
-
 function seoulYmd(d: Date): string {
   return new Intl.DateTimeFormat('en-CA', {
     timeZone: SEOUL,
@@ -216,19 +152,6 @@ function weekRangeLabelKo(monday: string, sunday: string): string {
   return `${f(monday)} – ${f(sunday)}`;
 }
 
-function tokenizeForFaithWords(chunk: string, counts: Map<string, number>): void {
-  const stripped = chunk.replace(/[\p{P}\p{S}]/gu, ' ');
-  const parts = stripped.split(/\s+/);
-  for (let raw of parts) {
-    raw = raw.trim();
-    if (raw.length < 2) continue;
-    if (/^\d+$/.test(raw)) continue;
-    if (KOREAN_STOPWORDS.has(raw)) continue;
-    if (/^[a-zA-Z]{1,2}$/.test(raw)) continue;
-    counts.set(raw, (counts.get(raw) ?? 0) + 1);
-  }
-}
-
 export interface JourneyDayBucket {
   ymd: string;
   label: (typeof WEEKDAY_LABELS)[number];
@@ -245,18 +168,11 @@ export interface JourneyWeekByType {
   gratitude: number;
 }
 
-export interface FaithWordItem {
-  text: string;
-  count: number;
-  weight: number;
-}
-
 export interface JourneyDashboardData {
   days: JourneyDayBucket[];
   weekTotal: number;
   /** 선택한 주의 묵상·만나·감사 건수 (각 유형 1건씩 집계) */
   weekByType: JourneyWeekByType;
-  faithWords: FaithWordItem[];
   weekOffset: number;
   weekRangeLabel: string;
   /** 이번 주(weekOffset===0)일 때만 오늘 요일 막대 강조용 인덱스(0=월) */
@@ -292,7 +208,7 @@ export async function getJourneyDashboardData(weekOffset = 0): Promise<JourneyDa
     cur[key] += n;
   };
 
-  const [medRes, gratRes, medDayRowsRes, mannaWeekRows] = await Promise.all([
+  const [medRes, gratRes, mannaWeekRows] = await Promise.all([
     supabase
       .from('meditation_days')
       .select('meditation_date')
@@ -305,12 +221,6 @@ export async function getJourneyDashboardData(weekOffset = 0): Promise<JourneyDa
       .eq('user_id', user.id)
       .gte('note_date', monday)
       .lte('note_date', sunday),
-    supabase
-      .from('meditation_days')
-      .select('id')
-      .eq('user_id', user.id)
-      .gte('meditation_date', monday)
-      .lte('meditation_date', sunday),
     fetchMannaRowsForJourneyYmdRange(supabase, user.id, monday, sunday),
   ]);
 
@@ -356,65 +266,10 @@ export async function getJourneyDashboardData(weekOffset = 0): Promise<JourneyDa
     highlightDayIndex = idx >= 0 ? idx : null;
   }
 
-  const medDayIds = (medDayRowsRes.data ?? []).map((r) => r.id as string).filter(Boolean);
-  const mannaWeekIds = mannaWeekRows.map((r) => r.id).filter(Boolean).slice(0, 400);
-  const gratWeekIds = (gratRes.data ?? [])
-    .map((r) => (r as { id: string }).id)
-    .filter(Boolean)
-    .slice(0, 400);
-
-  const [medItemsRes, mannaItemsRes, gratItemsRes] = await Promise.all([
-    medDayIds.length
-      ? supabase
-          .from('meditation_items')
-          .select('title, verse_reference, content')
-          .eq('user_id', user.id)
-          .in('day_id', medDayIds)
-          .limit(400)
-      : Promise.resolve({ data: [] as { title: string; verse_reference: string; content: string }[] }),
-    mannaWeekIds.length
-      ? supabase
-          .from('manna_entries')
-          .select('verse_reference, verse_text, note')
-          .eq('user_id', user.id)
-          .in('id', mannaWeekIds)
-          .limit(400)
-      : Promise.resolve({ data: [] as { verse_reference: string; verse_text: string; note: string | null }[] }),
-    gratWeekIds.length
-      ? supabase
-          .from('gratitude_notes')
-          .select('title, content')
-          .eq('user_id', user.id)
-          .in('id', gratWeekIds)
-          .limit(400)
-      : Promise.resolve({ data: [] as { title: string; content: string }[] }),
-  ]);
-
-  const wordCounts = new Map<string, number>();
-
-  for (const row of medItemsRes.data ?? []) {
-    tokenizeForFaithWords(`${row.title} ${row.verse_reference} ${row.content}`, wordCounts);
-  }
-  for (const row of mannaItemsRes.data ?? []) {
-    tokenizeForFaithWords(`${row.verse_reference} ${row.verse_text} ${row.note ?? ''}`, wordCounts);
-  }
-  for (const row of gratItemsRes.data ?? []) {
-    tokenizeForFaithWords(`${row.title} ${row.content}`, wordCounts);
-  }
-
-  const sorted = [...wordCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 36);
-  const max = sorted[0]?.[1] ?? 1;
-  const faithWords: FaithWordItem[] = sorted.map(([text, count]) => ({
-    text,
-    count,
-    weight: count / max,
-  }));
-
   return {
     days,
     weekTotal,
     weekByType,
-    faithWords,
     weekOffset: offset,
     weekRangeLabel: weekRangeLabelKo(monday, sunday),
     highlightDayIndex,
