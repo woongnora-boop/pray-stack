@@ -120,6 +120,25 @@ export function HomeDashboard({
             icon={<Heart className="h-3.5 w-3.5" aria-hidden />}
             listHref="/gratitude"
             newHref="/gratitude/new"
+            footer={
+              feed.gratitudeWeekKeywords.length > 0 ? (
+                <div className="mt-2 space-y-1">
+                  <p className="text-[10px] font-medium text-[var(--muted)]">이번 주 키워드</p>
+                  <div className="flex flex-wrap gap-1">
+                    {feed.gratitudeWeekKeywords.slice(0, 6).map((k) => (
+                      <Link
+                        key={k.term}
+                        href="/gratitude/keywords"
+                        className="inline-flex items-center gap-0.5 rounded-full border border-rose-500/20 bg-rose-500/10 px-2 py-0.5 text-[10px] font-semibold text-rose-900 dark:text-rose-100"
+                      >
+                        {k.term}
+                        <span className="tabular-nums font-medium text-rose-700/70 dark:text-rose-200/70">{k.count}</span>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              ) : null
+            }
           >
             {feed.gratitude ? (
               <CompactPreviewLink
@@ -236,6 +255,25 @@ export function HomeDashboard({
           icon={<Heart className="h-4 w-4" aria-hidden />}
           listHref="/gratitude"
           newHref="/gratitude/new"
+          below={
+            feed.gratitudeWeekKeywords.length > 0 ? (
+              <div className="space-y-1.5">
+                <p className="text-[11px] font-medium text-[var(--muted)]">이번 주 감사 키워드</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {feed.gratitudeWeekKeywords.slice(0, 8).map((k) => (
+                    <Link
+                      key={k.term}
+                      href="/gratitude/keywords"
+                      className="inline-flex items-center gap-1 rounded-full border border-rose-500/20 bg-rose-500/10 px-2.5 py-1 text-xs font-semibold text-rose-900 transition-colors [@media(hover:hover)]:hover:border-rose-500/35 dark:text-rose-100"
+                    >
+                      {k.term}
+                      <span className="tabular-nums text-[11px] font-medium text-rose-700/75 dark:text-rose-200/75">{k.count}</span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ) : null
+          }
         >
           {feed.gratitude ? (
             <FeedPreviewLink
@@ -267,6 +305,7 @@ function HomeCompactColumn({
   listHref,
   newHref,
   children,
+  footer,
 }: {
   tone: HomeTone;
   title: string;
@@ -275,6 +314,7 @@ function HomeCompactColumn({
   listHref: string;
   newHref: string;
   children: ReactNode;
+  footer?: ReactNode;
 }): ReactElement {
   const t = homeToneStyles[tone];
   return (
@@ -305,6 +345,7 @@ function HomeCompactColumn({
           목록
         </Link>
       </div>
+      {footer ? <div className="mt-2 border-t border-[var(--border)]/60 pt-2">{footer}</div> : null}
     </div>
   );
 }
@@ -382,6 +423,7 @@ function FeedRow({
   listHref,
   newHref,
   children,
+  below,
 }: {
   tone: HomeTone;
   title: string;
@@ -390,6 +432,7 @@ function FeedRow({
   listHref: string;
   newHref: string;
   children: ReactNode;
+  below?: ReactNode;
 }): ReactElement {
   const t = homeToneStyles[tone];
   return (
@@ -420,7 +463,10 @@ function FeedRow({
           </div>
         </div>
       </div>
-      <div className="min-h-[120px] min-w-0 flex-1 md:min-h-[100px]">{children}</div>
+      <div className="flex min-h-[120px] min-w-0 flex-1 flex-col gap-2 md:min-h-[100px]">
+        {children}
+        {below}
+      </div>
     </section>
   );
 }

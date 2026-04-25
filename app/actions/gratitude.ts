@@ -120,6 +120,7 @@ export async function createGratitudeNote(
   }
 
   revalidatePath('/gratitude');
+  revalidatePath('/gratitude/keywords');
   revalidatePath('/');
   redirect(`/gratitude/${(inserted as { id: string }).id}`);
 }
@@ -179,6 +180,7 @@ export async function updateGratitudeNote(
   }
 
   revalidatePath('/gratitude');
+  revalidatePath('/gratitude/keywords');
   revalidatePath('/');
   revalidatePath(`/gratitude/${noteId}`);
   revalidatePath(`/gratitude/${noteId}/edit`);
@@ -198,6 +200,7 @@ export async function deleteGratitudeNote(noteId: string): Promise<GratitudeActi
   }
 
   revalidatePath('/gratitude');
+  revalidatePath('/gratitude/keywords');
   revalidatePath('/');
   return { success: true };
 }

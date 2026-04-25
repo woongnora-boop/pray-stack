@@ -1,6 +1,8 @@
 'use server';
 
 import type { GratitudeNoteListItem } from '@/app/actions/gratitude';
+import { getGratitudeKeywordsForHomePreview } from '@/app/actions/gratitude-keywords';
+import type { GratitudeKeywordRank } from '@/lib/gratitude-keywords';
 import type { MeditationDayDetail } from '@/app/actions/meditation';
 import { getLatestMannaEntryForHome, type MannaEntryListItem } from '@/app/actions/manna';
 import { displayYmdFromDb } from '@/lib/date';
@@ -13,6 +15,8 @@ export interface HomeFeedData {
   meditation: MeditationDayDetail | null;
   manna: MannaEntryListItem | null;
   gratitude: GratitudeNoteListItem | null;
+  /** 서울 기준 이번 주 감사 노트 키워드 (홈 미리보기) */
+  gratitudeWeekKeywords: GratitudeKeywordRank[];
 }
 
 type LatestMeditationHomeRow = {
@@ -53,7 +57,7 @@ function mapLatestMeditationRow(row: LatestMeditationHomeRow | null): Meditation
 export async function getHomeFeed(): Promise<HomeFeedData> {
   const { supabase, user } = await getServerAuth();
   if (!user) {
-    return { meditation: null, manna: null, gratitude: null };
+    return { meditation: null, manna: null, gratitude: null, gratitudeWeekKeywords: [] };
   }
 
   const selectMeditationWithHl = `id, meditation_date, meditation_items(category_type, verse_reference, title, content, paragraph_highlights, sort_order)`;
@@ -77,7 +81,7 @@ export async function getHomeFeed(): Promise<HomeFeedData> {
       .maybeSingle();
   }
 
-  const [manna, gRes] = await Promise.all([
+  const [manna, gRes, gratitudeWeekKeywords] = await Promise.all([
     getLatestMannaEntryForHome(),
     supabase
       .from('gratitude_notes')
@@ -87,6 +91,7 @@ export async function getHomeFeed(): Promise<HomeFeedData> {
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle(),
+    getGratitudeKeywordsForHomePreview(),
   ]);
 
   const meditation = mapLatestMeditationRow(medRes.data as LatestMeditationHomeRow | null);
@@ -103,5 +108,5 @@ export async function getHomeFeed(): Promise<HomeFeedData> {
       ? { ...manna, entry_date: displayYmdFromDb(manna.entry_date) || manna.entry_date }
       : null;
 
-  return { meditation, manna: mannaNorm, gratitude };
+  return { meditation, manna: mannaNorm, gratitude, gratitudeWeekKeywords };
 }
