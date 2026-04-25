@@ -4,6 +4,8 @@ import type { GratitudeNoteListItem } from '@/app/actions/gratitude';
 import type { MeditationDayDetail } from '@/app/actions/meditation';
 import { getLatestMannaEntryForHome, type MannaEntryListItem } from '@/app/actions/manna';
 import { displayYmdFromDb } from '@/lib/date';
+import { isMissingParagraphHighlightsColumnError } from '@/lib/meditation-highlights-db';
+import { normalizeHighlightsFromDb } from '@/lib/meditation-paragraph-highlights';
 import { getServerAuth } from '@/lib/supabase/request-session';
 import type { MeditationCategoryType } from '@/types/database';
 
@@ -22,6 +24,7 @@ type LatestMeditationHomeRow = {
         verse_reference: string;
         title: string;
         content: string;
+        paragraph_highlights?: unknown;
         sort_order: number;
       }[]
     | null;
@@ -39,6 +42,10 @@ function mapLatestMeditationRow(row: LatestMeditationHomeRow | null): Meditation
       verse_reference: i.verse_reference,
       title: i.title,
       content: i.content,
+      paragraph_highlights:
+        i.paragraph_highlights !== undefined && i.paragraph_highlights !== null
+          ? normalizeHighlightsFromDb(i.paragraph_highlights)
+          : {},
     })),
   };
 }
@@ -49,16 +56,28 @@ export async function getHomeFeed(): Promise<HomeFeedData> {
     return { meditation: null, manna: null, gratitude: null };
   }
 
-  const [medRes, manna, gRes] = await Promise.all([
-    supabase
+  const selectMeditationWithHl = `id, meditation_date, meditation_items(category_type, verse_reference, title, content, paragraph_highlights, sort_order)`;
+  const selectMeditationNoHl = `id, meditation_date, meditation_items(category_type, verse_reference, title, content, sort_order)`;
+
+  let medRes = await supabase
+    .from('meditation_days')
+    .select(selectMeditationWithHl)
+    .eq('user_id', user.id)
+    .order('meditation_date', { ascending: false, nullsFirst: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (medRes.error && isMissingParagraphHighlightsColumnError(medRes.error)) {
+    medRes = await supabase
       .from('meditation_days')
-      .select(
-        `id, meditation_date, meditation_items(category_type, verse_reference, title, content, sort_order)`,
-      )
+      .select(selectMeditationNoHl)
       .eq('user_id', user.id)
       .order('meditation_date', { ascending: false, nullsFirst: false })
       .limit(1)
-      .maybeSingle(),
+      .maybeSingle();
+  }
+
+  const [manna, gRes] = await Promise.all([
     getLatestMannaEntryForHome(),
     supabase
       .from('gratitude_notes')

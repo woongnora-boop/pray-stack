@@ -14,7 +14,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { displayYmdFromDb, getTodayLocalDateString, seoulYmdNow, toDateInputValue } from '@/lib/date';
+import { getMannaCategoryTokens } from '@/lib/manna-category-styles';
 import { cn } from '@/lib/utils';
+
+import { MannaCategoryQuickAdd } from './MannaCategoryQuickAdd';
 
 interface MannaFormProps {
   mode: 'create' | 'edit';
@@ -123,6 +126,11 @@ export function MannaForm({ mode, entryId, defaultEntryDateYmd, categories, init
   const categoryErr = state?.success === false ? state.fieldErrors?.category_id?.[0] : undefined;
   const noteErr = state?.success === false ? state.fieldErrors?.note?.[0] : undefined;
 
+  const selectedCategory = useMemo(() => categories.find((c) => c.id === categoryId), [categories, categoryId]);
+  const categoryAccent = selectedCategory
+    ? getMannaCategoryTokens(selectedCategory.id, selectedCategory.name).solid
+    : undefined;
+
   return (
     <form className="mx-auto flex max-w-2xl flex-col gap-6" action={formAction}>
       <input type="hidden" name="_mode" value={mode} />
@@ -180,24 +188,38 @@ export function MannaForm({ mode, entryId, defaultEntryDateYmd, categories, init
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="category_id">카테고리</Label>
-        <select
-          id="category_id"
-          name="category_id"
-          value={categoryId}
-          onChange={(e) => setCategoryId(e.target.value)}
+        <div className="flex flex-wrap items-end justify-between gap-2">
+          <Label htmlFor="category_id">카테고리</Label>
+          <MannaCategoryQuickAdd
+            variant="inline"
+            onSuccess={(id) => {
+              if (id) setCategoryId(id);
+              router.refresh();
+            }}
+          />
+        </div>
+        <div
           className={cn(
-            'flex h-10 w-full rounded-md border border-[var(--border)] bg-[var(--card)] px-3 text-sm',
-            categoryErr && 'border-red-500',
+            'overflow-hidden rounded-md border bg-[var(--card)]',
+            categoryErr ? 'border-red-500' : 'border-[var(--border)]',
           )}
-          aria-invalid={Boolean(categoryErr)}
+          style={categoryAccent && !categoryErr ? { borderLeftWidth: 4, borderLeftColor: categoryAccent } : undefined}
         >
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
+          <select
+            id="category_id"
+            name="category_id"
+            value={categoryId}
+            onChange={(e) => setCategoryId(e.target.value)}
+            className="flex h-10 w-full border-0 bg-transparent px-3 text-sm text-[var(--foreground)] outline-none ring-0 focus:ring-0"
+            aria-invalid={Boolean(categoryErr)}
+          >
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </div>
         {categoryErr ? <p className="text-sm text-red-600">{categoryErr}</p> : null}
       </div>
 

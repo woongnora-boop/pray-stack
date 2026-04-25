@@ -20,6 +20,7 @@ const emptyItem = (): MeditationItemBlockValue => ({
   verse_reference: '',
   title: '',
   content: '',
+  paragraph_highlights: {},
 });
 
 interface MeditationFormProps {
@@ -32,7 +33,10 @@ export function MeditationForm({ mode, dayId, initialValues }: MeditationFormPro
   const router = useRouter();
   const initialItems = useMemo(() => {
     if (initialValues?.items?.length) {
-      return initialValues.items.map((i) => ({ ...i }));
+      return initialValues.items.map((i) => ({
+        ...i,
+        paragraph_highlights: i.paragraph_highlights ?? {},
+      }));
     }
     return [emptyItem()];
   }, [initialValues]);

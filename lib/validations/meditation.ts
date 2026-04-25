@@ -1,12 +1,31 @@
 import { z } from 'zod';
 
+import { MEDITATION_HIGHLIGHT_IDS } from '@/lib/meditation-highlight-styles';
+
 const meditationCategoryEnum = z.enum(['sermon', 'qt', 'praise', 'etc']);
+
+const highlightIdSchema = z.enum(MEDITATION_HIGHLIGHT_IDS);
+
+const paragraphHighlightsSchema = z
+  .record(z.string(), highlightIdSchema)
+  .optional()
+  .default({})
+  .transform((obj) => {
+    const out: Record<string, z.infer<typeof highlightIdSchema>> = {};
+    for (const [k, v] of Object.entries(obj)) {
+      if (/^\d+$/.test(k)) {
+        out[k] = v;
+      }
+    }
+    return out;
+  });
 
 const meditationItemSchema = z.object({
   category_type: meditationCategoryEnum,
   verse_reference: z.string().trim().min(1, '성경 구절을 입력해 주세요.'),
   title: z.string().trim().min(1, '묵상 제목을 입력해 주세요.'),
   content: z.string().trim().min(1, '묵상 내용을 입력해 주세요.'),
+  paragraph_highlights: paragraphHighlightsSchema,
 });
 
 export const meditationFormSchema = z.object({

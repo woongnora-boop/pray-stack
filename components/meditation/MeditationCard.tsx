@@ -4,7 +4,10 @@ import type { ReactElement } from 'react';
 import type { MeditationDayListItem } from '@/app/actions/meditation';
 import type { HomeTone } from '@/components/home/homeTones';
 import { homeToneStyles } from '@/components/home/homeTones';
+import { hasAnyParagraphHighlight } from '@/lib/meditation-paragraph-highlights';
 import { cn } from '@/lib/utils';
+
+import { MeditationHighlightedBody } from './MeditationHighlightedBody';
 
 export type MeditationCardProps = MeditationDayListItem & {
   tone?: HomeTone;
@@ -17,10 +20,13 @@ export function MeditationCard({
   preview_title,
   preview_verse,
   preview_excerpt,
+  preview_content = '',
+  preview_paragraph_highlights = {},
   tone = 'amber',
 }: MeditationCardProps): ReactElement {
   const t = homeToneStyles[tone];
   const headline = preview_title?.trim() || '묵상 기록';
+  const showHl = hasAnyParagraphHighlight(preview_paragraph_highlights) && preview_content.trim().length > 0;
 
   return (
     <Link
@@ -37,7 +43,16 @@ export function MeditationCard({
       {preview_verse ? (
         <p className="mt-1 line-clamp-1 text-sm text-[var(--muted)]">{preview_verse}</p>
       ) : null}
-      {preview_excerpt ? (
+      {showHl ? (
+        <div className="mt-2">
+          <MeditationHighlightedBody
+            content={preview_content}
+            highlights={preview_paragraph_highlights}
+            compact
+            maxParagraphs={5}
+          />
+        </div>
+      ) : preview_excerpt ? (
         <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-[var(--muted)]">{preview_excerpt}</p>
       ) : null}
       <p className="mt-3 text-xs text-[var(--muted)]">

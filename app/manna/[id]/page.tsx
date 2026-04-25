@@ -5,6 +5,7 @@ import type { ReactElement } from 'react';
 import { getMannaEntry } from '@/app/actions/manna';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DeleteMannaButton } from '@/components/manna/DeleteMannaButton';
+import { MannaCategoryTag } from '@/components/manna/MannaCategoryTag';
 import { backLinkTouchClassName } from '@/lib/back-link-touch';
 import { cn } from '@/lib/utils';
 
@@ -24,8 +25,9 @@ export default async function MannaDetailPage({ params }: MannaDetailPageProps):
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-sm text-[var(--muted)]">
-            {entry.entry_date} · {entry.category_name}
+          <p className="flex flex-wrap items-center gap-2 text-sm text-[var(--muted)]">
+            <span>{entry.entry_date}</span>
+            <MannaCategoryTag categoryId={entry.category_id} name={entry.category_name} size="sm" />
           </p>
           <h1 className="text-2xl font-semibold tracking-tight">{entry.verse_reference}</h1>
         </div>

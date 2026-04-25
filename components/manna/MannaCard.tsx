@@ -6,6 +6,8 @@ import type { HomeTone } from '@/components/home/homeTones';
 import { homeToneStyles } from '@/components/home/homeTones';
 import { cn } from '@/lib/utils';
 
+import { MannaCategoryTag } from './MannaCategoryTag';
+
 function preview(text: string, max: number): string {
   const t = text.trim();
   if (t.length <= max) {
@@ -32,8 +34,9 @@ export function MannaCard({
         t.leftAccent,
       )}
     >
-      <p className="text-[11px] font-medium uppercase tracking-wider text-[var(--muted)]">
-        {entry.entry_date} · {entry.category_name}
+      <p className="flex flex-wrap items-center gap-2 text-[11px] text-[var(--muted)]">
+        <span className="font-medium uppercase tracking-wider">{entry.entry_date}</span>
+        <MannaCategoryTag categoryId={entry.category_id} name={entry.category_name} size="xs" />
       </p>
       <p className="mt-1.5 line-clamp-2 text-base font-semibold text-[var(--foreground)]">{entry.verse_reference}</p>
       <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-[var(--muted)]">{preview(entry.verse_text, 180)}</p>

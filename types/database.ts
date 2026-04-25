@@ -44,6 +44,7 @@ export interface Database {
           verse_reference: string;
           title: string;
           content: string;
+          paragraph_highlights: Record<string, string>;
           sort_order: number;
           created_at: string;
           updated_at: string;
@@ -56,6 +57,7 @@ export interface Database {
           verse_reference: string;
           title: string;
           content: string;
+          paragraph_highlights?: Record<string, string>;
           sort_order?: number;
           created_at?: string;
           updated_at?: string;
@@ -68,6 +70,7 @@ export interface Database {
           verse_reference?: string;
           title?: string;
           content?: string;
+          paragraph_highlights?: Record<string, string>;
           sort_order?: number;
           created_at?: string;
           updated_at?: string;

@@ -14,7 +14,7 @@ import {
 } from '@/lib/validations/manna';
 
 export type MannaActionState =
-  | { success: true; message?: string }
+  | { success: true; message?: string; newCategoryId?: string }
   | { success: false; error: string; fieldErrors?: Record<string, string[] | undefined> };
 
 export interface MannaCategoryRow {
@@ -513,12 +513,16 @@ export async function createMannaCategory(
 
   const nextOrder = ((maxRow as { sort_order: number } | null)?.sort_order ?? 0) + 1;
 
-  const { error } = await supabase.from('manna_categories').insert({
-    user_id: user.id,
-    name: parsed.data.name,
-    is_default: false,
-    sort_order: nextOrder,
-  });
+  const { data: inserted, error } = await supabase
+    .from('manna_categories')
+    .insert({
+      user_id: user.id,
+      name: parsed.data.name,
+      is_default: false,
+      sort_order: nextOrder,
+    })
+    .select('id')
+    .single();
 
   if (error) {
     if (error.code === '23505') {
@@ -528,5 +532,61 @@ export async function createMannaCategory(
   }
 
   revalidatePath('/manna');
-  return { success: true, message: '카테고리가 추가되었습니다.' };
+  revalidatePath('/manna/new');
+  revalidatePath('/');
+  return {
+    success: true,
+    message: '카테고리가 추가되었습니다.',
+    newCategoryId: (inserted as { id: string } | null)?.id,
+  };
+}
+
+export async function deleteMannaCategory(categoryId: string): Promise<MannaActionState> {
+  if (!categoryId) {
+    return { success: false, error: '삭제할 카테고리가 없습니다.' };
+  }
+
+  const { supabase, user } = await getServerAuth();
+  if (!user) {
+    return { success: false, error: '로그인이 필요합니다.' };
+  }
+
+  const { data: row, error: fetchErr } = await supabase
+    .from('manna_categories')
+    .select('id, is_default')
+    .eq('id', categoryId)
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  if (fetchErr || !row) {
+    return { success: false, error: '카테고리를 찾을 수 없습니다.' };
+  }
+
+  if (row.is_default) {
+    return { success: false, error: '기본 카테고리는 삭제할 수 없습니다.' };
+  }
+
+  const { count, error: countErr } = await supabase
+    .from('manna_entries')
+    .select('id', { count: 'exact', head: true })
+    .eq('category_id', categoryId)
+    .eq('user_id', user.id);
+
+  if (countErr) {
+    return { success: false, error: mapDbError(countErr) };
+  }
+  if (count != null && count > 0) {
+    return { success: false, error: '이 주제에 저장된 말씀이 있어 삭제할 수 없습니다.' };
+  }
+
+  const { error } = await supabase.from('manna_categories').delete().eq('id', categoryId).eq('user_id', user.id);
+
+  if (error) {
+    return { success: false, error: mapDbError(error) };
+  }
+
+  revalidatePath('/manna');
+  revalidatePath('/manna/new');
+  revalidatePath('/');
+  return { success: true, message: '카테고리를 삭제했습니다.' };
 }

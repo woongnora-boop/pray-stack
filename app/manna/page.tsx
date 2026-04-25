@@ -3,8 +3,7 @@ import type { ReactElement } from 'react';
 import { z } from 'zod';
 
 import { listMannaCategories, listMannaEntries } from '@/app/actions/manna';
-import { AddCategoryForm } from '@/components/manna/AddCategoryForm';
-import { MannaCategoryChips } from '@/components/manna/MannaCategoryChips';
+import { MannaCategoryFilter } from '@/components/manna/MannaCategoryFilter';
 import { MannaList } from '@/components/manna/MannaList';
 import { ListPageHero, ListPagePanel, listPrimaryLinkClass } from '@/components/layout/ListPageShell';
 import { getServerAuth } from '@/lib/supabase/request-session';
@@ -51,17 +50,11 @@ export default async function MannaPage({ searchParams }: MannaPageProps): Promi
           <>
             <div className="border-b border-[var(--border)] bg-gradient-to-br from-[var(--background)] via-[var(--card)] to-[var(--background)] px-5 py-5 md:px-6">
               <h2 className="text-sm font-semibold text-[var(--foreground)]">카테고리 필터</h2>
-              <p className="mt-1 text-xs text-[var(--muted)]">보고 싶은 카테고리만 골라 볼 수 있어요.</p>
+              <p className="mt-1 text-xs text-[var(--muted)]">
+                색으로 구분된 주제를 고르고, +로 추가·휴지통으로 삭제할 수 있어요. (기본 5개 주제는 삭제만 제한)
+              </p>
               <div className="mt-4">
-                <MannaCategoryChips categories={categories} selectedCategoryId={filterCategoryId} />
-              </div>
-            </div>
-
-            <div className="border-b border-[var(--border)] px-5 py-5 md:px-6">
-              <h2 className="text-sm font-semibold text-[var(--foreground)]">새 카테고리</h2>
-              <p className="mt-1 text-xs text-[var(--muted)]">나만의 주제로 말씀을 묶어 보세요.</p>
-              <div className="mt-4 max-w-md">
-                <AddCategoryForm />
+                <MannaCategoryFilter categories={categories} selectedCategoryId={filterCategoryId} />
               </div>
             </div>
           </>

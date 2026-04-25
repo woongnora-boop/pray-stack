@@ -6,6 +6,8 @@ import { getMeditationDay } from '@/app/actions/meditation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DeleteMeditationButton } from '@/components/meditation/DeleteMeditationButton';
 import { backLinkTouchClassName } from '@/lib/back-link-touch';
+import { MeditationHighlightedBody } from '@/components/meditation/MeditationHighlightedBody';
+import { hasAnyParagraphHighlight } from '@/lib/meditation-paragraph-highlights';
 import { MEDITATION_CATEGORY_LABELS } from '@/lib/meditation-labels';
 import { cn } from '@/lib/utils';
 
@@ -58,7 +60,13 @@ export default async function MeditationDetailPage({ params }: MeditationDetailP
               </div>
               <div>
                 <p className="text-xs font-medium uppercase text-[var(--muted)]">내용</p>
-                <p className="whitespace-pre-wrap leading-relaxed">{item.content}</p>
+                {hasAnyParagraphHighlight(item.paragraph_highlights) ? (
+                  <div className="mt-1">
+                    <MeditationHighlightedBody content={item.content} highlights={item.paragraph_highlights} />
+                  </div>
+                ) : (
+                  <p className="mt-1 whitespace-pre-wrap leading-relaxed">{item.content}</p>
+                )}
               </div>
             </CardContent>
           </Card>

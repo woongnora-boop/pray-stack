@@ -6,7 +6,9 @@ import { z } from 'zod';
 
 import { displayYmdFromDb, toDateInputValue } from '@/lib/date';
 import { mergePayloadDateFromFormData } from '@/lib/form-merge-payload';
-import { getServerAuth } from '@/lib/supabase/request-session';
+import { isMissingParagraphHighlightsColumnError } from '@/lib/meditation-highlights-db';
+import { normalizeHighlightsFromDb } from '@/lib/meditation-paragraph-highlights';
+import { getServerAuth, getServerSupabase } from '@/lib/supabase/request-session';
 import { meditationFormSchema, type MeditationFormValues } from '@/lib/validations/meditation';
 import type { MeditationCategoryType } from '@/types/database';
 
@@ -32,6 +34,35 @@ function zodFieldErrors(error: z.ZodError): Record<string, string[] | undefined>
   return error.flatten().fieldErrors;
 }
 
+type MeditationItemInsertRow = {
+  day_id: string;
+  user_id: string;
+  category_type: MeditationCategoryType;
+  verse_reference: string;
+  title: string;
+  content: string;
+  sort_order: number;
+  paragraph_highlights: Record<string, string>;
+};
+
+type ServerSupabase = Awaited<ReturnType<typeof getServerSupabase>>;
+
+async function insertMeditationItemRows(
+  supabase: ServerSupabase,
+  rows: MeditationItemInsertRow[],
+): Promise<{ error: { message?: string } | null }> {
+  const withHl = rows.map((r) => ({
+    ...r,
+    paragraph_highlights: r.paragraph_highlights ?? {},
+  }));
+  let { error } = await supabase.from('meditation_items').insert(withHl);
+  if (error && isMissingParagraphHighlightsColumnError(error)) {
+    const stripped = withHl.map(({ paragraph_highlights: _ph, ...rest }) => rest);
+    ({ error } = await supabase.from('meditation_items').insert(stripped));
+  }
+  return { error };
+}
+
 export interface MeditationDayListItem {
   id: string;
   meditation_date: string;
@@ -42,6 +73,10 @@ export interface MeditationDayListItem {
   preview_verse: string | null;
   /** 첫 항목 내용 일부 */
   preview_excerpt: string | null;
+  /** 첫 항목 본문 전체(형광 미리보기). */
+  preview_content: string;
+  /** 첫 항목 문단 형광. 컬럼 없으면 {} */
+  preview_paragraph_highlights: Record<string, string>;
 }
 
 function excerptMeditationContent(text: string, max: number): string {
@@ -59,6 +94,7 @@ type NestedMeditationDayRow = {
     verse_reference: string;
     title: string;
     content: string;
+    paragraph_highlights?: unknown;
     sort_order: number;
   }[];
 };
@@ -69,11 +105,26 @@ export async function listMeditationDays(): Promise<MeditationDayListItem[]> {
     return [];
   }
 
-  const { data: rows, error } = await supabase
+  const selectWithHl =
+    'id, meditation_date, meditation_items(verse_reference, title, content, paragraph_highlights, sort_order)';
+  const selectNoHl = 'id, meditation_date, meditation_items(verse_reference, title, content, sort_order)';
+
+  const primary = await supabase
     .from('meditation_days')
-    .select('id, meditation_date, meditation_items(verse_reference, title, content, sort_order)')
+    .select(selectWithHl)
     .eq('user_id', user.id)
     .order('meditation_date', { ascending: false, nullsFirst: false });
+
+  const listRes =
+    primary.error && isMissingParagraphHighlightsColumnError(primary.error)
+      ? await supabase
+          .from('meditation_days')
+          .select(selectNoHl)
+          .eq('user_id', user.id)
+          .order('meditation_date', { ascending: false, nullsFirst: false })
+      : primary;
+
+  const { data: rows, error } = listRes;
 
   if (error || !rows) {
     return [];
@@ -83,6 +134,10 @@ export async function listMeditationDays(): Promise<MeditationDayListItem[]> {
     const items = [...(d.meditation_items ?? [])].sort((a, b) => a.sort_order - b.sort_order);
     const first = items[0];
     const ymd = displayYmdFromDb(d.meditation_date) || d.meditation_date;
+    const hl =
+      first?.paragraph_highlights !== undefined && first?.paragraph_highlights !== null
+        ? normalizeHighlightsFromDb(first.paragraph_highlights)
+        : {};
     return {
       id: d.id,
       meditation_date: ymd,
@@ -90,6 +145,8 @@ export async function listMeditationDays(): Promise<MeditationDayListItem[]> {
       preview_title: first?.title ?? null,
       preview_verse: first?.verse_reference ?? null,
       preview_excerpt: first?.content ? excerptMeditationContent(first.content, 140) : null,
+      preview_content: first?.content ?? '',
+      preview_paragraph_highlights: hl,
     };
   });
 }
@@ -112,12 +169,28 @@ export async function getMeditationDay(dayId: string): Promise<MeditationDayDeta
     return null;
   }
 
-  const { data: items, error: itemsError } = await supabase
+  const selectWithHl =
+    'category_type, verse_reference, title, content, paragraph_highlights, sort_order';
+  const selectWithoutHl = 'category_type, verse_reference, title, content, sort_order';
+
+  const itemsPrimary = await supabase
     .from('meditation_items')
-    .select('category_type, verse_reference, title, content, sort_order')
+    .select(selectWithHl)
     .eq('day_id', dayId)
     .eq('user_id', user.id)
     .order('sort_order', { ascending: true });
+
+  const itemsFinal =
+    itemsPrimary.error && isMissingParagraphHighlightsColumnError(itemsPrimary.error)
+      ? await supabase
+          .from('meditation_items')
+          .select(selectWithoutHl)
+          .eq('day_id', dayId)
+          .eq('user_id', user.id)
+          .order('sort_order', { ascending: true })
+      : itemsPrimary;
+
+  const { data: items, error: itemsError } = itemsFinal;
 
   if (itemsError || !items?.length) {
     return null;
@@ -128,6 +201,7 @@ export async function getMeditationDay(dayId: string): Promise<MeditationDayDeta
     verse_reference: string;
     title: string;
     content: string;
+    paragraph_highlights?: unknown;
   }[];
 
   const parsedItems = itemRows.map((i) => ({
@@ -135,6 +209,10 @@ export async function getMeditationDay(dayId: string): Promise<MeditationDayDeta
     verse_reference: i.verse_reference,
     title: i.title,
     content: i.content,
+    paragraph_highlights:
+      i.paragraph_highlights !== undefined && i.paragraph_highlights !== null
+        ? normalizeHighlightsFromDb(i.paragraph_highlights)
+        : {},
   }));
 
   const ymd = displayYmdFromDb(day.meditation_date) || day.meditation_date;
@@ -189,17 +267,18 @@ export async function createMeditation(
     return { success: false, error: mapDbError(dayError) };
   }
 
-  const rows = items.map((item, index) => ({
+  const rows: MeditationItemInsertRow[] = items.map((item, index) => ({
     day_id: insertedDay.id,
     user_id: user.id,
     category_type: item.category_type,
     verse_reference: item.verse_reference,
     title: item.title,
     content: item.content,
+    paragraph_highlights: item.paragraph_highlights ?? {},
     sort_order: index + 1,
   }));
 
-  const { error: itemsError } = await supabase.from('meditation_items').insert(rows);
+  const { error: itemsError } = await insertMeditationItemRows(supabase, rows);
 
   if (itemsError) {
     await supabase.from('meditation_days').delete().eq('id', insertedDay.id);
@@ -283,17 +362,18 @@ export async function updateMeditation(
     return { success: false, error: mapDbError(deleteError) };
   }
 
-  const rows = items.map((item, index) => ({
+  const rows: MeditationItemInsertRow[] = items.map((item, index) => ({
     day_id: dayId,
     user_id: user.id,
     category_type: item.category_type,
     verse_reference: item.verse_reference,
     title: item.title,
     content: item.content,
+    paragraph_highlights: item.paragraph_highlights ?? {},
     sort_order: index + 1,
   }));
 
-  const { error: insertError } = await supabase.from('meditation_items').insert(rows);
+  const { error: insertError } = await insertMeditationItemRows(supabase, rows);
 
   if (insertError) {
     return { success: false, error: mapDbError(insertError) };

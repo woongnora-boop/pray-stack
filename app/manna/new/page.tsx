@@ -2,9 +2,9 @@ import Link from 'next/link';
 import type { ReactElement } from 'react';
 
 import { listMannaCategories } from '@/app/actions/manna';
-import { seoulYmdNow } from '@/lib/date';
-import { AddCategoryForm } from '@/components/manna/AddCategoryForm';
+import { MannaCategoryQuickAdd } from '@/components/manna/MannaCategoryQuickAdd';
 import { MannaForm } from '@/components/manna/MannaForm';
+import { seoulYmdNow } from '@/lib/date';
 import { backLinkTouchClassName } from '@/lib/back-link-touch';
 import { cn } from '@/lib/utils';
 
@@ -20,7 +20,7 @@ export default async function NewMannaPage(): Promise<ReactElement> {
       {categories.length === 0 ? (
         <div className="space-y-4">
           <p className="text-sm text-[var(--muted)]">먼저 카테고리를 만든 뒤 말씀을 추가할 수 있습니다.</p>
-          <AddCategoryForm />
+          <MannaCategoryQuickAdd variant="inline" />
           <Link href="/manna" className={cn('text-sm underline', backLinkTouchClassName)}>
             ← 만나 목록으로
           </Link>

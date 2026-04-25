@@ -9,14 +9,19 @@ import { BibleVersePickerKRV } from '@/components/bible/bible-verse-picker';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import type { MeditationHighlightId } from '@/lib/meditation-highlight-styles';
 import { MEDITATION_CATEGORY_LABELS } from '@/lib/meditation-labels';
+import { sanitizeParagraphHighlights, splitMeditationParagraphs } from '@/lib/meditation-paragraph-highlights';
 import { cn } from '@/lib/utils';
+
+import { MeditationParagraphHighlighter } from './MeditationParagraphHighlighter';
 
 export interface MeditationItemBlockValue {
   category_type: MeditationCategoryType;
   verse_reference: string;
   title: string;
   content: string;
+  paragraph_highlights: Record<string, MeditationHighlightId>;
 }
 
 interface MeditationItemBlockProps {
@@ -98,12 +103,15 @@ export function MeditationItemBlock({
       <BibleChapterViewer
         syncFromReference={value.verse_reference}
         onApplyBody={(plain) => {
+          const nextContent = value.content.trim() ? `${value.content.trim()}\n\n${plain}` : plain;
+          const n = splitMeditationParagraphs(nextContent).length;
           onChange({
             ...value,
-            content: value.content.trim() ? `${value.content.trim()}\n\n${plain}` : plain,
+            content: nextContent,
+            paragraph_highlights: sanitizeParagraphHighlights(value.paragraph_highlights, n),
           });
         }}
-        onClearBody={() => onChange({ ...value, content: '' })}
+        onClearBody={() => onChange({ ...value, content: '', paragraph_highlights: {} })}
       />
 
       <div className="space-y-2">
@@ -124,12 +132,29 @@ export function MeditationItemBlock({
         <Textarea
           id={`block-${index}-content`}
           value={value.content}
-          onChange={(e) => onChange({ ...value, content: e.target.value })}
+          onChange={(e) => {
+            const content = e.target.value;
+            const n = splitMeditationParagraphs(content).length;
+            onChange({
+              ...value,
+              content,
+              paragraph_highlights: sanitizeParagraphHighlights(value.paragraph_highlights, n),
+            });
+          }}
+          className="min-h-[120px] resize-y"
           aria-invalid={Boolean(itemFieldError(fieldErrors, index, 'content'))}
         />
+        <p className="text-[11px] text-[var(--muted)]">
+          형광은 <strong className="font-medium text-[var(--foreground)]">빈 줄(줄바꿈 두 번)</strong>으로 나뉜 문단마다 적용됩니다.
+        </p>
         {itemFieldError(fieldErrors, index, 'content') ? (
           <p className="text-sm text-red-600">{itemFieldError(fieldErrors, index, 'content')}</p>
         ) : null}
+        <MeditationParagraphHighlighter
+          content={value.content}
+          highlights={value.paragraph_highlights}
+          onHighlightsChange={(next) => onChange({ ...value, paragraph_highlights: next })}
+        />
       </div>
     </div>
   );

@@ -3,6 +3,9 @@ import Link from 'next/link';
 import type { ReactElement, ReactNode } from 'react';
 
 import type { HomeFeedData } from '@/app/actions/home';
+import { MeditationHighlightedBody } from '@/components/meditation/MeditationHighlightedBody';
+import { MannaCategoryTag } from '@/components/manna/MannaCategoryTag';
+import { hasAnyParagraphHighlight } from '@/lib/meditation-paragraph-highlights';
 import { homeShellCardClass, homeToneStyles, type HomeTone } from '@/components/home/homeTones';
 import { cn } from '@/lib/utils';
 
@@ -55,6 +58,20 @@ export function HomeDashboard({
                   '묵상 보기'
                 }
                 body={previewText(feed.meditation.items[0]?.content ?? '', 72)}
+                bodyPreview={(() => {
+                  const first = feed.meditation?.items[0];
+                  if (!first || !hasAnyParagraphHighlight(first.paragraph_highlights) || !first.content?.trim()) {
+                    return undefined;
+                  }
+                  return (
+                    <MeditationHighlightedBody
+                      content={first.content}
+                      highlights={first.paragraph_highlights}
+                      compact
+                      maxParagraphs={2}
+                    />
+                  );
+                })()}
               />
             ) : (
               <CompactFeedEmpty
@@ -78,7 +95,16 @@ export function HomeDashboard({
               <CompactPreviewLink
                 href={`/manna/${feed.manna.id}`}
                 tone="sky"
-                meta={`${feed.manna.entry_date}`}
+                meta={
+                  <>
+                    <span>{feed.manna.entry_date}</span>
+                    <MannaCategoryTag
+                      categoryId={feed.manna.category_id}
+                      name={feed.manna.category_name}
+                      size="xs"
+                    />
+                  </>
+                }
                 title={feed.manna.verse_reference}
                 body={previewText(feed.manna.verse_text, 72)}
               />
@@ -148,6 +174,20 @@ export function HomeDashboard({
                 '묵상 보기'
               }
               body={previewText(feed.meditation.items[0]?.content ?? '', 200)}
+              bodyPreview={(() => {
+                const first = feed.meditation?.items[0];
+                if (!first || !hasAnyParagraphHighlight(first.paragraph_highlights) || !first.content?.trim()) {
+                  return undefined;
+                }
+                return (
+                  <MeditationHighlightedBody
+                    content={first.content}
+                    highlights={first.paragraph_highlights}
+                    compact
+                    maxParagraphs={3}
+                  />
+                );
+              })()}
             />
           ) : (
             <FeedEmpty
@@ -171,7 +211,16 @@ export function HomeDashboard({
             <FeedPreviewLink
               href={`/manna/${feed.manna.id}`}
               tone="sky"
-              meta={`${feed.manna.entry_date} · ${feed.manna.category_name}`}
+              meta={
+                <>
+                  <span className="uppercase tracking-wider">{feed.manna.entry_date}</span>
+                  <MannaCategoryTag
+                    categoryId={feed.manna.category_id}
+                    name={feed.manna.category_name}
+                    size="xs"
+                  />
+                </>
+              }
               title={feed.manna.verse_reference}
               body={previewText(feed.manna.verse_text, 200)}
             />
@@ -266,12 +315,15 @@ function CompactPreviewLink({
   meta,
   title,
   body,
+  bodyPreview,
 }: {
   href: string;
   tone: HomeTone;
-  meta: string;
+  meta: ReactNode;
   title: string;
   body: string;
+  /** 있으면 본문 미리보기 대신 렌더(묵상 형광 등) */
+  bodyPreview?: ReactNode;
 }): ReactElement {
   const t = homeToneStyles[tone];
   return (
@@ -284,9 +336,13 @@ function CompactPreviewLink({
         'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]',
       )}
     >
-      <p className="text-[10px] font-medium text-[var(--muted)]">{meta}</p>
+      <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-medium text-[var(--muted)]">{meta}</div>
       <p className="mt-0.5 line-clamp-1 text-xs font-semibold leading-snug text-[var(--foreground)]">{title}</p>
-      <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-[var(--muted)]">{body}</p>
+      {bodyPreview ? (
+        <div className="mt-1 w-full text-[var(--foreground)]">{bodyPreview}</div>
+      ) : (
+        <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-[var(--muted)]">{body}</p>
+      )}
       <span className={cn('mt-2 inline-flex items-center text-[10px] font-semibold', t.icon)}>
         보기
         <ChevronRight className="ml-0.5 h-3 w-3" aria-hidden />
@@ -375,12 +431,14 @@ function FeedPreviewLink({
   meta,
   title,
   body,
+  bodyPreview,
 }: {
   href: string;
   tone: HomeTone;
-  meta: string;
+  meta: ReactNode;
   title: string;
   body: string;
+  bodyPreview?: ReactNode;
 }): ReactElement {
   const t = homeToneStyles[tone];
   return (
@@ -394,11 +452,15 @@ function FeedPreviewLink({
       )}
     >
       <div>
-        <p className="text-[11px] font-medium uppercase tracking-wider text-[var(--muted)]">{meta}</p>
+        <div className="flex flex-wrap items-center gap-2 text-[11px] font-medium text-[var(--muted)]">{meta}</div>
         <p className="mt-1.5 line-clamp-2 text-sm font-semibold leading-snug text-[var(--foreground)] [@media(hover:hover)]:group-hover:text-[var(--foreground)]">
           {title}
         </p>
-        <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-[var(--muted)]">{body}</p>
+        {bodyPreview ? (
+          <div className="mt-2 w-full text-[var(--foreground)]">{bodyPreview}</div>
+        ) : (
+          <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-[var(--muted)]">{body}</p>
+        )}
       </div>
       <span
         className={cn(
