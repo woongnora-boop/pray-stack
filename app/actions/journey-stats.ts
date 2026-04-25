@@ -1,6 +1,7 @@
 'use server';
 
 import { JOURNEY_MIN_WEEK_OFFSET } from '@/lib/journey-week';
+import { displayYmdFromDb, seoulYmdFromIso } from '@/lib/date';
 import { getServerAuth } from '@/lib/supabase/request-session';
 
 const SEOUL = 'Asia/Seoul';
@@ -65,6 +66,22 @@ function normalizeYmd(value: string | null | undefined): string | null {
   return s;
 }
 
+/** `meditation_days` + `meditation_items(count)` 조회 행에서 항목 수 (같은 날 여러 블록 집계용) */
+function meditationItemCountFromDayRow(row: unknown): number {
+  if (!row || typeof row !== 'object') return 0;
+  const mi = (row as { meditation_items?: unknown }).meditation_items;
+  if (Array.isArray(mi) && mi[0] != null && typeof mi[0] === 'object' && 'count' in mi[0]) {
+    const c = (mi[0] as { count: number | string }).count;
+    const n = typeof c === 'number' ? c : Number(c);
+    return Number.isFinite(n) ? n : 0;
+  }
+  if (mi && typeof mi === 'object' && !Array.isArray(mi) && 'count' in (mi as object)) {
+    const n = Number((mi as { count: number | string }).count);
+    return Number.isFinite(n) ? n : 0;
+  }
+  return 0;
+}
+
 /** `manna.ts`와 동일 — `entry_date` 컬럼 부재 시 만나 주간 집계가 비는 문제 방지 */
 function isMissingEntryDateColumnError(error: { message?: string; code?: string } | null): boolean {
   if (!error) return false;
@@ -77,8 +94,14 @@ function isMissingEntryDateColumnError(error: { message?: string; code?: string 
 
 type MannaJourneyRow = { id: string; entry_date?: string | null; created_at: string };
 
+/**
+ * 만나 1건이 속한 서울 달력 `YYYY-MM-DD`.
+ * `manna.ts`의 `entryDateFromRow`와 동일한 기준: `entry_date` 우선, 없으면 `created_at`은 서울 날짜(UTC 앞 10자 금지).
+ */
 function mannaYmd(row: MannaJourneyRow): string {
-  return normalizeYmd(row.entry_date ?? undefined) ?? normalizeYmd(row.created_at) ?? row.created_at.slice(0, 10);
+  const fromEntry = displayYmdFromDb(row.entry_date ?? undefined);
+  if (fromEntry) return fromEntry;
+  return seoulYmdFromIso(row.created_at) || normalizeYmd(row.created_at) || row.created_at.slice(0, 10);
 }
 
 /**
@@ -155,7 +178,7 @@ function weekRangeLabelKo(monday: string, sunday: string): string {
 export interface JourneyDayBucket {
   ymd: string;
   label: (typeof WEEKDAY_LABELS)[number];
-  /** 묵상·만나·감사 합계 (기존과 동일한 의미) */
+  /** 묵상(항목 수)·만나·감사 합계 */
   count: number;
   meditationCount: number;
   mannaCount: number;
@@ -171,7 +194,7 @@ export interface JourneyWeekByType {
 export interface JourneyDashboardData {
   days: JourneyDayBucket[];
   weekTotal: number;
-  /** 선택한 주의 묵상·만나·감사 건수 (각 유형 1건씩 집계) */
+  /** 선택한 주의 묵상(일별 항목 수 합)·만나·감사 건수 */
   weekByType: JourneyWeekByType;
   weekOffset: number;
   weekRangeLabel: string;
@@ -211,7 +234,7 @@ export async function getJourneyDashboardData(weekOffset = 0): Promise<JourneyDa
   const [medRes, gratRes, mannaWeekRows] = await Promise.all([
     supabase
       .from('meditation_days')
-      .select('meditation_date')
+      .select('meditation_date, meditation_items(count)')
       .eq('user_id', user.id)
       .gte('meditation_date', monday)
       .lte('meditation_date', sunday),
@@ -225,8 +248,9 @@ export async function getJourneyDashboardData(weekOffset = 0): Promise<JourneyDa
   ]);
 
   for (const row of medRes.data ?? []) {
-    const y = normalizeYmd(row.meditation_date as string);
-    if (y) bump(y, 'meditation', 1);
+    const y = normalizeYmd((row as { meditation_date: string }).meditation_date);
+    const n = meditationItemCountFromDayRow(row);
+    if (y && n > 0) bump(y, 'meditation', n);
   }
   for (const row of mannaWeekRows) {
     const y = normalizeYmd(mannaYmd(row));
@@ -379,7 +403,7 @@ export async function getJourneyMonthCalendarData(
   const [medRes, gratRes, mannaRows] = await Promise.all([
     supabase
       .from('meditation_days')
-      .select('meditation_date')
+      .select('meditation_date, meditation_items(count)')
       .eq('user_id', user.id)
       .gte('meditation_date', gridStart)
       .lte('meditation_date', gridEnd),
@@ -393,7 +417,9 @@ export async function getJourneyMonthCalendarData(
   ]);
 
   for (const row of medRes.data ?? []) {
-    bump((row as { meditation_date: string }).meditation_date, 'meditation', 1);
+    const y = normalizeYmd((row as { meditation_date: string }).meditation_date);
+    const n = meditationItemCountFromDayRow(row);
+    if (y && n > 0) bump(y, 'meditation', n);
   }
   for (const row of gratRes.data ?? []) {
     bump((row as { note_date: string }).note_date, 'gratitude', 1);

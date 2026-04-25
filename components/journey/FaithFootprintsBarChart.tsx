@@ -129,7 +129,7 @@ export function FaithFootprintsBarChart({
         </ResponsiveContainer>
       </div>
       <p className="mt-1 px-2 text-center text-[11px] text-[var(--muted)]">
-        막대는 묵상(주황)·만나(하늘)·감사(로즈) 순으로 쌓여 있어요. 각 유형은 해당 날짜에 1건씩 집계됩니다. (서울 기준 월~일)
+        막대는 묵상(주황)·만나(하늘)·감사(로즈) 순으로 쌓여 있어요. 묵상은 해당 날짜의 항목(블록) 수, 만나·감사는 해당 날짜 건수입니다. (서울 기준 월~일)
       </p>
     </div>
   );

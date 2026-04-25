@@ -5,7 +5,9 @@ import type { ReactElement } from 'react';
 import { getMeditationDay } from '@/app/actions/meditation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DeleteMeditationButton } from '@/components/meditation/DeleteMeditationButton';
+import { backLinkTouchClassName } from '@/lib/back-link-touch';
 import { MEDITATION_CATEGORY_LABELS } from '@/lib/meditation-labels';
+import { cn } from '@/lib/utils';
 
 interface MeditationDetailPageProps {
   params: Promise<{ id: string }>;
@@ -63,7 +65,13 @@ export default async function MeditationDetailPage({ params }: MeditationDetailP
         ))}
       </div>
 
-      <Link href="/meditation" className="text-sm text-[var(--muted)] underline hover:text-[var(--foreground)]">
+      <Link
+        href="/meditation"
+        className={cn(
+          'text-sm text-[var(--muted)] underline [@media(hover:hover)]:hover:text-[var(--foreground)] active:text-[var(--foreground)]',
+          backLinkTouchClassName,
+        )}
+      >
         ← 목록으로
       </Link>
     </div>

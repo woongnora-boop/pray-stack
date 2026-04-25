@@ -5,6 +5,8 @@ import type { ReactElement } from 'react';
 import { getMannaEntry } from '@/app/actions/manna';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DeleteMannaButton } from '@/components/manna/DeleteMannaButton';
+import { backLinkTouchClassName } from '@/lib/back-link-touch';
+import { cn } from '@/lib/utils';
 
 interface MannaDetailPageProps {
   params: Promise<{ id: string }>;
@@ -58,7 +60,13 @@ export default async function MannaDetailPage({ params }: MannaDetailPageProps):
         </Card>
       ) : null}
 
-      <Link href="/manna" className="text-sm text-[var(--muted)] underline hover:text-[var(--foreground)]">
+      <Link
+        href="/manna"
+        className={cn(
+          'text-sm text-[var(--muted)] underline [@media(hover:hover)]:hover:text-[var(--foreground)] active:text-[var(--foreground)]',
+          backLinkTouchClassName,
+        )}
+      >
         ← 목록으로
       </Link>
     </div>

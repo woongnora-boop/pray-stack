@@ -251,7 +251,7 @@ function HomeCompactColumn({
         </Link>
         <Link
           href={listHref}
-          className="inline-flex items-center rounded-full border border-[var(--border)] bg-[var(--card)]/80 px-2 py-1 text-[10px] font-medium text-[var(--muted)] transition-colors hover:text-[var(--foreground)]"
+          className="inline-flex items-center rounded-full border border-[var(--border)] bg-[var(--card)]/80 px-2 py-1 text-[10px] font-medium text-[var(--muted)] transition-colors [@media(hover:hover)]:hover:text-[var(--foreground)] active:text-[var(--foreground)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
         >
           목록
         </Link>
@@ -278,7 +278,10 @@ function CompactPreviewLink({
     <Link
       href={href}
       className={cn(
-        'group block rounded-lg border border-[var(--border)]/90 bg-[var(--card)]/50 p-2.5 ring-1 ring-transparent transition-all hover:border-[var(--foreground)]/12 hover:bg-[var(--card)] hover:shadow-sm hover:ring-[var(--foreground)]/5',
+        'group block rounded-lg border border-[var(--border)]/90 bg-[var(--card)]/50 p-2.5 ring-1 ring-transparent transition-all',
+        '[@media(hover:hover)]:hover:border-[var(--foreground)]/12 [@media(hover:hover)]:hover:bg-[var(--card)] [@media(hover:hover)]:hover:shadow-sm [@media(hover:hover)]:hover:ring-[var(--foreground)]/5',
+        'active:border-[var(--foreground)]/12 active:bg-[var(--card)] active:shadow-sm active:ring-[var(--foreground)]/5',
+        'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]',
       )}
     >
       <p className="text-[10px] font-medium text-[var(--muted)]">{meta}</p>
@@ -354,7 +357,7 @@ function FeedRow({
             </Link>
             <Link
               href={listHref}
-              className="inline-flex items-center rounded-full border border-[var(--border)] bg-[var(--background)]/60 px-3 py-1 text-xs font-medium text-[var(--muted)] transition-colors hover:border-[var(--foreground)]/20 hover:text-[var(--foreground)] dark:bg-[var(--card)]/60"
+              className="inline-flex items-center rounded-full border border-[var(--border)] bg-[var(--background)]/60 px-3 py-1 text-xs font-medium text-[var(--muted)] transition-colors [@media(hover:hover)]:hover:border-[var(--foreground)]/20 [@media(hover:hover)]:hover:text-[var(--foreground)] active:border-[var(--foreground)]/20 active:text-[var(--foreground)] dark:bg-[var(--card)]/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
             >
               전체 목록
             </Link>
@@ -383,18 +386,23 @@ function FeedPreviewLink({
   return (
     <Link
       href={href}
-      className="group flex h-full min-h-[120px] flex-col justify-between rounded-xl border border-[var(--border)] bg-[var(--background)]/40 p-4 ring-1 ring-transparent transition-all hover:border-[var(--foreground)]/10 hover:bg-[var(--card)] hover:shadow-md hover:ring-[var(--foreground)]/5 dark:bg-[var(--foreground)]/[0.03] dark:hover:bg-[var(--card)]"
+      className={cn(
+        'group flex h-full min-h-[120px] flex-col justify-between rounded-xl border border-[var(--border)] bg-[var(--background)]/40 p-4 ring-1 ring-transparent transition-all dark:bg-[var(--foreground)]/[0.03]',
+        '[@media(hover:hover)]:hover:border-[var(--foreground)]/10 [@media(hover:hover)]:hover:bg-[var(--card)] [@media(hover:hover)]:hover:shadow-md [@media(hover:hover)]:hover:ring-[var(--foreground)]/5 dark:[@media(hover:hover)]:hover:bg-[var(--card)]',
+        'active:border-[var(--foreground)]/10 active:bg-[var(--card)] active:shadow-md active:ring-[var(--foreground)]/5 dark:active:bg-[var(--card)]',
+        'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]',
+      )}
     >
       <div>
         <p className="text-[11px] font-medium uppercase tracking-wider text-[var(--muted)]">{meta}</p>
-        <p className="mt-1.5 line-clamp-2 text-sm font-semibold leading-snug text-[var(--foreground)] group-hover:text-[var(--foreground)]">
+        <p className="mt-1.5 line-clamp-2 text-sm font-semibold leading-snug text-[var(--foreground)] [@media(hover:hover)]:group-hover:text-[var(--foreground)]">
           {title}
         </p>
         <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-[var(--muted)]">{body}</p>
       </div>
       <span
         className={cn(
-          'mt-3 inline-flex items-center text-xs font-medium transition-transform group-hover:translate-x-0.5',
+          'mt-3 inline-flex items-center text-xs font-medium transition-transform [@media(hover:hover)]:group-hover:translate-x-0.5',
           t.icon,
         )}
       >
@@ -473,10 +481,10 @@ function NavPill({
     <Link
       href={href}
       className={cn(
-        'inline-flex h-11 items-center gap-2 rounded-full border px-4 text-sm font-medium transition-all',
+        'inline-flex h-11 items-center gap-2 rounded-full border px-4 text-sm font-medium transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]',
         primary
-          ? 'border-[var(--foreground)] bg-[var(--foreground)] text-[var(--background)] shadow-sm hover:opacity-90'
-          : 'border-[var(--border)] bg-[var(--card)] text-[var(--foreground)] hover:border-[var(--foreground)]/25 hover:shadow-sm',
+          ? 'border-[var(--foreground)] bg-[var(--foreground)] text-[var(--background)] shadow-sm [@media(hover:hover)]:hover:opacity-90 active:opacity-90'
+          : 'border-[var(--border)] bg-[var(--card)] text-[var(--foreground)] [@media(hover:hover)]:hover:border-[var(--foreground)]/25 [@media(hover:hover)]:hover:shadow-sm active:border-[var(--foreground)]/25 active:shadow-sm',
       )}
     >
       {icon}

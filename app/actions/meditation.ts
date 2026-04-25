@@ -4,6 +4,8 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
 
+import { displayYmdFromDb, toDateInputValue } from '@/lib/date';
+import { mergePayloadDateFromFormData } from '@/lib/form-merge-payload';
 import { getServerAuth } from '@/lib/supabase/request-session';
 import { meditationFormSchema, type MeditationFormValues } from '@/lib/validations/meditation';
 import type { MeditationCategoryType } from '@/types/database';
@@ -71,7 +73,7 @@ export async function listMeditationDays(): Promise<MeditationDayListItem[]> {
     .from('meditation_days')
     .select('id, meditation_date, meditation_items(verse_reference, title, content, sort_order)')
     .eq('user_id', user.id)
-    .order('meditation_date', { ascending: false });
+    .order('meditation_date', { ascending: false, nullsFirst: false });
 
   if (error || !rows) {
     return [];
@@ -80,9 +82,10 @@ export async function listMeditationDays(): Promise<MeditationDayListItem[]> {
   return (rows as NestedMeditationDayRow[]).map((d) => {
     const items = [...(d.meditation_items ?? [])].sort((a, b) => a.sort_order - b.sort_order);
     const first = items[0];
+    const ymd = displayYmdFromDb(d.meditation_date) || d.meditation_date;
     return {
       id: d.id,
-      meditation_date: d.meditation_date,
+      meditation_date: ymd,
       item_count: items.length,
       preview_title: first?.title ?? null,
       preview_verse: first?.verse_reference ?? null,
@@ -134,9 +137,10 @@ export async function getMeditationDay(dayId: string): Promise<MeditationDayDeta
     content: i.content,
   }));
 
+  const ymd = displayYmdFromDb(day.meditation_date) || day.meditation_date;
   return {
     id: day.id,
-    meditation_date: day.meditation_date,
+    meditation_date: ymd,
     items: parsedItems,
   };
 }
@@ -226,7 +230,16 @@ export async function updateMeditation(
     return { success: false, error: '로그인이 필요합니다.' };
   }
 
-  const { meditation_date, items } = parsed.data;
+  const { items } = parsed.data;
+  const meditation_date =
+    displayYmdFromDb(parsed.data.meditation_date) || toDateInputValue(parsed.data.meditation_date);
+  if (!meditation_date) {
+    return {
+      success: false,
+      error: '날짜를 확인해 주세요.',
+      fieldErrors: { meditation_date: ['날짜를 선택해 주세요.'] },
+    };
+  }
 
   const { data: day, error: dayFetchError } = await supabase
     .from('meditation_days')
@@ -300,12 +313,11 @@ export async function submitMeditationForm(
   const mode = String(formData.get('_mode') ?? 'create');
   const dayId = String(formData.get('_dayId') ?? '');
   const raw = String(formData.get('_payload') ?? '{}');
-  let parsedJson: unknown;
-  try {
-    parsedJson = JSON.parse(raw) as unknown;
-  } catch {
+  const merged = mergePayloadDateFromFormData(formData, raw, 'meditation_date');
+  if (!merged.ok) {
     return { success: false, error: '요청 형식이 올바르지 않습니다.' };
   }
+  const parsedJson = merged.payload;
 
   if (mode === 'edit') {
     if (!dayId) {

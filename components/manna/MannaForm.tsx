@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactElement } from 'react';
-import { useActionState, useEffect, useMemo, useState } from 'react';
+import { useActionState, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
@@ -13,12 +13,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { getTodayLocalDateString } from '@/lib/date';
+import { displayYmdFromDb, getTodayLocalDateString, seoulYmdNow, toDateInputValue } from '@/lib/date';
 import { cn } from '@/lib/utils';
 
 interface MannaFormProps {
   mode: 'create' | 'edit';
   entryId?: string;
+  /** 신규 작성: 말씀 일자 기본값(페이지 렌더 시각의 서울 당일). 입력 시각(`created_at`)과 별개 필드. */
+  defaultEntryDateYmd?: string;
   categories: MannaCategoryRow[];
   initialValues?: {
     entry_date: string;
@@ -29,9 +31,18 @@ interface MannaFormProps {
   };
 }
 
-export function MannaForm({ mode, entryId, categories, initialValues }: MannaFormProps): ReactElement {
+export function MannaForm({ mode, entryId, defaultEntryDateYmd, categories, initialValues }: MannaFormProps): ReactElement {
   const router = useRouter();
-  const [entryDate, setEntryDate] = useState(initialValues?.entry_date ?? getTodayLocalDateString());
+  const [entryDate, setEntryDate] = useState(() => {
+    const ymd = toDateInputValue(initialValues?.entry_date);
+    if (ymd) return ymd;
+    if (mode === 'create') {
+      const serverDefault = toDateInputValue(defaultEntryDateYmd);
+      if (serverDefault) return serverDefault;
+      return seoulYmdNow() || getTodayLocalDateString();
+    }
+    return '';
+  });
   const [verseReference, setVerseReference] = useState(initialValues?.verse_reference ?? '');
   const [verseText, setVerseText] = useState(initialValues?.verse_text ?? '');
   const [categoryId, setCategoryId] = useState(initialValues?.category_id ?? categories[0]?.id ?? '');
@@ -40,7 +51,7 @@ export function MannaForm({ mode, entryId, categories, initialValues }: MannaFor
   const payloadString = useMemo(
     () =>
       JSON.stringify({
-        entry_date: entryDate,
+        entry_date: toDateInputValue(entryDate) || entryDate,
         verse_reference: verseReference,
         verse_text: verseText,
         category_id: categoryId,
@@ -49,22 +60,62 @@ export function MannaForm({ mode, entryId, categories, initialValues }: MannaFor
     [entryDate, verseReference, verseText, categoryId, note],
   );
 
-  const [state, formAction, pending] = useActionState(submitMannaEntryForm, null as MannaActionState | null);
+  const verseRefRef = useRef(verseReference);
+  verseRefRef.current = verseReference;
+  const verseTextRef = useRef(verseText);
+  verseTextRef.current = verseText;
+  const categoryIdRef = useRef(categoryId);
+  categoryIdRef.current = categoryId;
+  const noteRef = useRef(note);
+  noteRef.current = note;
+
+  const entryDateRef = useRef(entryDate);
+  entryDateRef.current = entryDate;
+
+  const boundSubmit = useCallback(async (prev: MannaActionState | null, formData: FormData) => {
+    const fromRef = toDateInputValue(entryDateRef.current);
+    const rawForm =
+      typeof formData.get('entry_date') === 'string' ? toDateInputValue(String(formData.get('entry_date')).trim()) : '';
+    const entryYmd =
+      displayYmdFromDb(fromRef || rawForm) || fromRef || rawForm || toDateInputValue(entryDateRef.current);
+
+    const payloadObj = {
+      entry_date: entryYmd || '',
+      verse_reference: verseRefRef.current,
+      verse_text: verseTextRef.current,
+      category_id: categoryIdRef.current,
+      note: noteRef.current ?? '',
+    };
+
+    const fd = new FormData();
+    fd.set('_mode', String(formData.get('_mode') ?? ''));
+    const eid = formData.get('_entryId');
+    if (eid != null) fd.set('_entryId', String(eid));
+    if (entryYmd) {
+      fd.set('entry_date', entryYmd);
+    }
+    fd.set('_payload', JSON.stringify(payloadObj));
+    return submitMannaEntryForm(prev, fd);
+  }, []);
+
+  const [state, formAction, pending] = useActionState(boundSubmit, null as MannaActionState | null);
 
   useEffect(() => {
     if (!state) {
       return;
     }
-    if (state.success && state.message) {
-      toast.success(state.message);
-      if (mode === 'edit') {
-        router.refresh();
+    if (state.success) {
+      if (state.message) {
+        toast.success(state.message);
       }
+      if (mode === 'edit' && entryId) {
+        router.refresh();
+        router.push(`/manna/${entryId}`);
+      }
+      return;
     }
-    if (!state.success) {
-      toast.error(state.error);
-    }
-  }, [state, mode, router]);
+    toast.error(state.error);
+  }, [state, mode, router, entryId]);
 
   const entryDateErr = state?.success === false ? state.fieldErrors?.entry_date?.[0] : undefined;
   const verseRefErr = state?.success === false ? state.fieldErrors?.verse_reference?.[0] : undefined;
@@ -89,6 +140,7 @@ export function MannaForm({ mode, entryId, categories, initialValues }: MannaFor
         <Label htmlFor="manna_entry_date">날짜</Label>
         <Input
           id="manna_entry_date"
+          name="entry_date"
           type="date"
           value={entryDate}
           onChange={(e) => setEntryDate(e.target.value)}
@@ -131,6 +183,7 @@ export function MannaForm({ mode, entryId, categories, initialValues }: MannaFor
         <Label htmlFor="category_id">카테고리</Label>
         <select
           id="category_id"
+          name="category_id"
           value={categoryId}
           onChange={(e) => setCategoryId(e.target.value)}
           className={cn(

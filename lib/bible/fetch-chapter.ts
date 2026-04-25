@@ -17,7 +17,10 @@ export async function fetchBibleChapterFromApi(params: {
     qs.set('translation', params.translation.trim());
   }
 
-  const res = await fetch(`/api/bible?${qs.toString()}`);
+  const res = await fetch(`/api/bible?${qs.toString()}`, {
+    credentials: 'same-origin',
+    cache: 'no-store',
+  });
   const json: unknown = await res.json();
 
   if (!res.ok) {

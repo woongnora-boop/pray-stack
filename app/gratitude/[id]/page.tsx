@@ -5,6 +5,8 @@ import type { ReactElement } from 'react';
 import { getGratitudeNote } from '@/app/actions/gratitude';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DeleteGratitudeButton } from '@/components/gratitude/DeleteGratitudeButton';
+import { backLinkTouchClassName } from '@/lib/back-link-touch';
+import { cn } from '@/lib/utils';
 
 interface GratitudeDetailPageProps {
   params: Promise<{ id: string }>;
@@ -45,7 +47,13 @@ export default async function GratitudeDetailPage({ params }: GratitudeDetailPag
         </CardContent>
       </Card>
 
-      <Link href="/gratitude" className="text-sm text-[var(--muted)] underline hover:text-[var(--foreground)]">
+      <Link
+        href="/gratitude"
+        className={cn(
+          'text-sm text-[var(--muted)] underline [@media(hover:hover)]:hover:text-[var(--foreground)] active:text-[var(--foreground)]',
+          backLinkTouchClassName,
+        )}
+      >
         ← 목록으로
       </Link>
     </div>

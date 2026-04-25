@@ -2,6 +2,8 @@ import Link from 'next/link';
 import type { ReactElement } from 'react';
 
 import { GratitudeForm } from '@/components/gratitude/GratitudeForm';
+import { backLinkTouchClassName } from '@/lib/back-link-touch';
+import { cn } from '@/lib/utils';
 
 export default function NewGratitudePage(): ReactElement {
   return (
@@ -11,7 +13,13 @@ export default function NewGratitudePage(): ReactElement {
         <p className="mt-1 text-sm text-[var(--muted)]">날짜, 제목, 내용을 입력합니다.</p>
       </div>
       <GratitudeForm mode="create" />
-      <Link href="/gratitude" className="text-sm text-[var(--muted)] underline hover:text-[var(--foreground)]">
+      <Link
+        href="/gratitude"
+        className={cn(
+          'text-sm text-[var(--muted)] underline [@media(hover:hover)]:hover:text-[var(--foreground)] active:text-[var(--foreground)]',
+          backLinkTouchClassName,
+        )}
+      >
         ← 목록으로
       </Link>
     </div>

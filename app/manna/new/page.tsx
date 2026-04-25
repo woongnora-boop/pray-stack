@@ -2,8 +2,11 @@ import Link from 'next/link';
 import type { ReactElement } from 'react';
 
 import { listMannaCategories } from '@/app/actions/manna';
+import { seoulYmdNow } from '@/lib/date';
 import { AddCategoryForm } from '@/components/manna/AddCategoryForm';
 import { MannaForm } from '@/components/manna/MannaForm';
+import { backLinkTouchClassName } from '@/lib/back-link-touch';
+import { cn } from '@/lib/utils';
 
 export default async function NewMannaPage(): Promise<ReactElement> {
   const categories = await listMannaCategories();
@@ -18,14 +21,20 @@ export default async function NewMannaPage(): Promise<ReactElement> {
         <div className="space-y-4">
           <p className="text-sm text-[var(--muted)]">먼저 카테고리를 만든 뒤 말씀을 추가할 수 있습니다.</p>
           <AddCategoryForm />
-          <Link href="/manna" className="text-sm underline">
+          <Link href="/manna" className={cn('text-sm underline', backLinkTouchClassName)}>
             ← 만나 목록으로
           </Link>
         </div>
       ) : (
-        <MannaForm mode="create" categories={categories} />
+        <MannaForm mode="create" categories={categories} defaultEntryDateYmd={seoulYmdNow()} />
       )}
-      <Link href="/manna" className="text-sm text-[var(--muted)] underline hover:text-[var(--foreground)]">
+      <Link
+        href="/manna"
+        className={cn(
+          'text-sm text-[var(--muted)] underline [@media(hover:hover)]:hover:text-[var(--foreground)] active:text-[var(--foreground)]',
+          backLinkTouchClassName,
+        )}
+      >
         ← 목록으로
       </Link>
     </div>

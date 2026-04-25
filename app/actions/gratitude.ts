@@ -4,6 +4,8 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
 
+import { displayYmdFromDb, toDateInputValue } from '@/lib/date';
+import { mergePayloadDateFromFormData } from '@/lib/form-merge-payload';
 import { getServerAuth } from '@/lib/supabase/request-session';
 import { gratitudeNoteFormSchema, type GratitudeNoteFormValues } from '@/lib/validations/gratitude';
 
@@ -47,14 +49,17 @@ export async function listGratitudeNotes(): Promise<GratitudeNoteListItem[]> {
     .from('gratitude_notes')
     .select('id, note_date, title, content, created_at')
     .eq('user_id', user.id)
-    .order('note_date', { ascending: false })
+    .order('note_date', { ascending: false, nullsFirst: false })
     .order('created_at', { ascending: false });
 
   if (error || !data) {
     return [];
   }
 
-  return data as GratitudeNoteListItem[];
+  return (data as GratitudeNoteListItem[]).map((row) => ({
+    ...row,
+    note_date: displayYmdFromDb(row.note_date) || row.note_date,
+  }));
 }
 
 export async function getGratitudeNote(noteId: string): Promise<GratitudeNoteDetail | null> {
@@ -74,7 +79,11 @@ export async function getGratitudeNote(noteId: string): Promise<GratitudeNoteDet
     return null;
   }
 
-  return row as GratitudeNoteDetail;
+  const typed = row as GratitudeNoteDetail;
+  return {
+    ...typed,
+    note_date: displayYmdFromDb(typed.note_date) || typed.note_date,
+  };
 }
 
 export async function createGratitudeNote(
@@ -145,10 +154,20 @@ export async function updateGratitudeNote(
     return { success: false, error: '기록을 찾을 수 없습니다.' };
   }
 
+  const note_date =
+    displayYmdFromDb(parsed.data.note_date) || toDateInputValue(parsed.data.note_date);
+  if (!note_date) {
+    return {
+      success: false,
+      error: '날짜를 확인해 주세요.',
+      fieldErrors: { note_date: ['날짜를 선택해 주세요.'] },
+    };
+  }
+
   const { error } = await supabase
     .from('gratitude_notes')
     .update({
-      note_date: parsed.data.note_date,
+      note_date,
       title: parsed.data.title,
       content: parsed.data.content,
     })
@@ -190,12 +209,11 @@ export async function submitGratitudeNoteForm(
   const mode = String(formData.get('_mode') ?? 'create');
   const noteId = String(formData.get('_noteId') ?? '');
   const raw = String(formData.get('_payload') ?? '{}');
-  let parsedJson: unknown;
-  try {
-    parsedJson = JSON.parse(raw) as unknown;
-  } catch {
+  const merged = mergePayloadDateFromFormData(formData, raw, 'note_date');
+  if (!merged.ok) {
     return { success: false, error: '요청 형식이 올바르지 않습니다.' };
   }
+  const parsedJson = merged.payload;
 
   if (mode === 'edit') {
     if (!noteId) {

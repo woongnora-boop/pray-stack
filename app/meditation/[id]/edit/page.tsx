@@ -4,6 +4,8 @@ import type { ReactElement } from 'react';
 
 import { getMeditationDay } from '@/app/actions/meditation';
 import { MeditationForm } from '@/components/meditation/MeditationForm';
+import { backLinkTouchClassName } from '@/lib/back-link-touch';
+import { cn } from '@/lib/utils';
 
 interface MeditationEditPageProps {
   params: Promise<{ id: string }>;
@@ -24,11 +26,18 @@ export default async function MeditationEditPage({ params }: MeditationEditPageP
         <p className="mt-1 text-sm text-[var(--muted)]">{detail.meditation_date}</p>
       </div>
       <MeditationForm
+        key={id}
         mode="edit"
         dayId={id}
         initialValues={{ meditation_date: detail.meditation_date, items: detail.items }}
       />
-      <Link href={`/meditation/${id}`} className="text-sm text-[var(--muted)] underline hover:text-[var(--foreground)]">
+      <Link
+        href={`/meditation/${id}`}
+        className={cn(
+          'text-sm text-[var(--muted)] underline [@media(hover:hover)]:hover:text-[var(--foreground)] active:text-[var(--foreground)]',
+          backLinkTouchClassName,
+        )}
+      >
         ← 상세로
       </Link>
     </div>

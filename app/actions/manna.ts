@@ -4,6 +4,8 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
 
+import { displayYmdFromDb, seoulYmdFromIso, seoulYmdNow, toDateInputValue } from '@/lib/date';
+import { mergePayloadDateFromFormData } from '@/lib/form-merge-payload';
 import { getServerAuth, getServerSupabase } from '@/lib/supabase/request-session';
 import {
   mannaCategoryNameSchema,
@@ -64,10 +66,22 @@ function isMissingEntryDateColumnError(error: { message?: string; code?: string 
   return false;
 }
 
-function entryDateFromRow(
-  row: { entry_date?: string; created_at: string },
-): string {
-  return row.entry_date?.slice(0, 10) ?? row.created_at.slice(0, 10);
+/**
+ * 표시·폼용 말씀 일자(`entry_date`). DB에만 있고 `created_at`(입력 시각)과는 별개입니다.
+ * 예전에 `entry_date`가 비어 있던 행만, 서울 달력 기준으로 `created_at`에서 추정합니다.
+ */
+function entryDateFromRow(row: { entry_date?: string | null; created_at: string }): string {
+  const fromCol = row.entry_date?.trim();
+  if (fromCol) {
+    const ymd = displayYmdFromDb(fromCol);
+    if (ymd) return ymd;
+  }
+  return seoulYmdFromIso(row.created_at) || row.created_at.slice(0, 10);
+}
+
+/** 신규 작성: 비어 있거나 파싱 실패 시 서울 당일. */
+function resolveMannaEntryDateYmdForCreate(entryDateFromForm: string): string {
+  return displayYmdFromDb(entryDateFromForm) || toDateInputValue(entryDateFromForm) || seoulYmdNow();
 }
 
 type MannaListRow = {
@@ -152,7 +166,7 @@ export async function listMannaEntries(filterCategoryId: string | null): Promise
     .from('manna_entries')
     .select('id, verse_reference, verse_text, note, category_id, entry_date, created_at, manna_categories(name)')
     .eq('user_id', user.id)
-    .order('entry_date', { ascending: false })
+    .order('entry_date', { ascending: false, nullsFirst: false })
     .order('created_at', { ascending: false });
 
   if (filterCategoryId) {
@@ -199,7 +213,7 @@ export async function getLatestMannaEntryForHome(): Promise<MannaEntryListItem |
     .from('manna_entries')
     .select('id, verse_reference, verse_text, note, category_id, created_at, entry_date, manna_categories(name)')
     .eq('user_id', user.id)
-    .order('entry_date', { ascending: false })
+    .order('entry_date', { ascending: false, nullsFirst: false })
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -331,11 +345,13 @@ export async function createMannaEntry(
     note: parsed.data.note ?? null,
   };
 
+  const entryYmd = resolveMannaEntryDateYmdForCreate(parsed.data.entry_date);
+
   let { data: inserted, error } = await supabase
     .from('manna_entries')
     .insert({
       ...insertBase,
-      entry_date: parsed.data.entry_date,
+      entry_date: entryYmd,
     })
     .select('id')
     .single();
@@ -397,23 +413,24 @@ export async function updateMannaEntry(
     note: parsed.data.note ?? null,
   };
 
-  let { error } = await supabase
+  const entryYmd =
+    displayYmdFromDb(parsed.data.entry_date) || toDateInputValue(parsed.data.entry_date);
+  if (!entryYmd) {
+    return {
+      success: false,
+      error: '날짜를 확인해 주세요.',
+      fieldErrors: { entry_date: ['날짜를 선택해 주세요.'] },
+    };
+  }
+
+  const { error } = await supabase
     .from('manna_entries')
     .update({
       ...updateBase,
-      entry_date: parsed.data.entry_date,
+      entry_date: entryYmd,
     })
     .eq('id', entryId)
     .eq('user_id', user.id);
-
-  if (error && isMissingEntryDateColumnError(error)) {
-    const retry = await supabase
-      .from('manna_entries')
-      .update(updateBase)
-      .eq('id', entryId)
-      .eq('user_id', user.id);
-    error = retry.error;
-  }
 
   if (error) {
     return { success: false, error: mapDbError(error) };
@@ -450,12 +467,11 @@ export async function submitMannaEntryForm(
   const mode = String(formData.get('_mode') ?? 'create');
   const entryId = String(formData.get('_entryId') ?? '');
   const raw = String(formData.get('_payload') ?? '{}');
-  let parsedJson: unknown;
-  try {
-    parsedJson = JSON.parse(raw) as unknown;
-  } catch {
+  const merged = mergePayloadDateFromFormData(formData, raw, 'entry_date');
+  if (!merged.ok) {
     return { success: false, error: '요청 형식이 올바르지 않습니다.' };
   }
+  const parsedJson = merged.payload;
 
   if (mode === 'edit') {
     if (!entryId) {

@@ -4,6 +4,8 @@ import type { ReactElement } from 'react';
 
 import { getMannaEntry, listMannaCategories } from '@/app/actions/manna';
 import { MannaForm } from '@/components/manna/MannaForm';
+import { backLinkTouchClassName } from '@/lib/back-link-touch';
+import { cn } from '@/lib/utils';
 
 interface MannaEditPageProps {
   params: Promise<{ id: string }>;
@@ -27,6 +29,7 @@ export default async function MannaEditPage({ params }: MannaEditPageProps): Pro
         <p className="text-sm text-[var(--muted)]">카테고리가 없습니다. 목록에서 카테고리를 추가해 주세요.</p>
       ) : (
         <MannaForm
+          key={id}
           mode="edit"
           entryId={id}
           categories={categories}
@@ -39,7 +42,13 @@ export default async function MannaEditPage({ params }: MannaEditPageProps): Pro
           }}
         />
       )}
-      <Link href={`/manna/${id}`} className="text-sm text-[var(--muted)] underline hover:text-[var(--foreground)]">
+      <Link
+        href={`/manna/${id}`}
+        className={cn(
+          'text-sm text-[var(--muted)] underline [@media(hover:hover)]:hover:text-[var(--foreground)] active:text-[var(--foreground)]',
+          backLinkTouchClassName,
+        )}
+      >
         ← 상세로
       </Link>
     </div>
