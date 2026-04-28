@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Pray Stack — 스토어용 가로 배너 (1932×828)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html {
+        overflow-x: auto;
+        overflow-y: auto;
+      }
+      body {
+        margin: 0;
+        /* 가로 패딩 없음: 1932px 배너 + min-width가 뷰포트와 정확히 맞을 때 잘림 방지 */
+        padding: 20px 0 40px;
+        background: #0a0a0a;
+        font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+        min-width: 1932px;
+        min-height: 100vh;
+      }
+      /* 정확히 1932×828 — 스토어 배너 규격 */
+      .banner {
+        width: 1932px;
+        height: 828px;
+        background: linear-gradient(145deg, #fafafa 0%, #f4f4f5 45%, #ececee 100%);
+        border-radius: 28px;
+        border: 1px solid #e4e4e7;
+        box-shadow:
+          0 1px 3px rgba(0, 0, 0, 0.06),
+          0 16px 48px rgba(0, 0, 0, 0.08);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        padding: 36px 48px 40px 48px;
+        color: #18181b;
+      }
+      .top {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        margin-bottom: 28px;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+      }
+      .logo-mark {
+        width: 56px;
+        height: 56px;
+        border-radius: 14px;
+        background: rgba(24, 24, 27, 0.06);
+        border: 1px solid #e4e4e7;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .brand-text h1 {
+        font-size: 42px;
+        font-weight: 800;
+        letter-spacing: -0.04em;
+        line-height: 1.1;
+        color: #09090b;
+      }
+      .brand-text p {
+        margin-top: 8px;
+        font-size: 22px;
+        font-weight: 600;
+        color: #52525b;
+        letter-spacing: -0.02em;
+      }
+      .brand-text .sub {
+        margin-top: 6px;
+        font-size: 17px;
+        font-weight: 500;
+        color: #71717a;
+      }
+      .pill {
+        align-self: center;
+        padding: 12px 22px;
+        border-radius: 999px;
+        background: #18181b;
+        color: #fafafa;
+        font-size: 15px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+      }
+      .grid {
+        flex: 1;
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 22px;
+        min-height: 0;
+      }
+      .column {
+        background: rgba(255, 255, 255, 0.72);
+        border: 1px solid #e4e4e7;
+        border-radius: 18px;
+        padding: 22px 20px 20px;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+      }
+      .col-head {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+      .icon-wrap {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .icon-wrap.amber {
+        background: rgba(245, 158, 11, 0.12);
+        color: #b45309;
+      }
+      .icon-wrap.sky {
+        background: rgba(14, 165, 233, 0.12);
+        color: #0369a1;
+      }
+      .icon-wrap.rose {
+        background: rgba(244, 63, 94, 0.12);
+        color: #be123c;
+      }
+      .col-titles h3 {
+        font-size: 18px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        color: #09090b;
+      }
+      .col-titles span {
+        display: block;
+        margin-top: 2px;
+        font-size: 13px;
+        font-weight: 500;
+        color: #71717a;
+      }
+      .bar {
+        height: 3px;
+        width: 48px;
+        border-radius: 999px;
+        margin-bottom: 14px;
+      }
+      .bar.amber {
+        background: linear-gradient(90deg, #fbbf24, #fb923c, #f59e0b);
+      }
+      .bar.sky {
+        background: linear-gradient(90deg, #38bdf8, #60a5fa, #0ea5e9);
+      }
+      .bar.rose {
+        background: linear-gradient(90deg, #fb7185, #f472b6, #f43f5e);
+      }
+      .preview {
+        flex: 1;
+        border: 1px solid #e4e4e7;
+        border-radius: 12px;
+        background: rgba(250, 250, 250, 0.9);
+        padding: 16px 14px;
+        display: flex;
+        flex-direction: column;
+      }
+      .meta {
+        font-size: 12px;
+        font-weight: 600;
+        color: #71717a;
+        margin-bottom: 6px;
+      }
+      .preview h4 {
+        font-size: 15px;
+        font-weight: 700;
+        color: #18181b;
+        line-height: 1.35;
+        margin-bottom: 8px;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+      .preview .body {
+        font-size: 13px;
+        line-height: 1.55;
+        color: #71717a;
+        display: -webkit-box;
+        -webkit-line-clamp: 4;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        flex: 1;
+      }
+      .preview .hl {
+        background: linear-gradient(transparent 60%, rgba(251, 191, 36, 0.45) 60%);
+        border-radius: 2px;
+      }
+      .cta {
+        margin-top: 12px;
+        font-size: 12px;
+        font-weight: 700;
+        color: #b45309;
+      }
+      .cta.sky {
+        color: #0369a1;
+      }
+      .cta.rose {
+        color: #be123c;
+      }
+      .chips {
+        margin-top: 10px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .chip {
+        font-size: 11px;
+        font-weight: 700;
+        padding: 4px 10px;
+        border-radius: 999px;
+        background: rgba(244, 63, 94, 0.1);
+        border: 1px solid rgba(244, 63, 94, 0.22);
+        color: #9f1239;
+      }
+      .hint {
+        margin-top: 20px;
+        max-width: 1932px;
+        font-size: 13px;
+        line-height: 1.5;
+        color: #a1a1aa;
+      }
+    </style>
+  </head>
+  <body>
+    <article class="banner" aria-label="Pray Stack 스토어 배너">
+      <header class="top">
+        <div class="brand">
+          <div class="logo-mark" aria-hidden="true">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#27272a" stroke-width="2">
+              <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" />
+            </svg>
+          </div>
+          <div class="brand-text">
+            <h1>Pray Stack</h1>
+            <p>최근 기록</p>
+            <p class="sub">묵상 · 만나 · 감사를 한눈에 볼 수 있어요.</p>
+          </div>
+        </div>
+        <div class="pill">faith journaling</div>
+      </header>
+
+      <div class="grid">
+        <!-- 묵상 -->
+        <section class="column">
+          <div class="col-head">
+            <div class="icon-wrap amber" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25">
+                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+                <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+              </svg>
+            </div>
+            <div class="col-titles">
+              <h3>묵상</h3>
+              <span>그날의 묵상</span>
+            </div>
+          </div>
+          <div class="bar amber"></div>
+          <div class="preview">
+            <div class="meta">2026-04-20</div>
+            <h4>로마서 8장 — 아들의 영으로</h4>
+            <p class="body">
+              고난 중에도 <span class="hl">하나님의 사랑</span>을 의심하지 않기로. 육신의 연약함보다
+              <span class="hl">성령의 생각</span>에 머무는 하루. 짧게라도 말씀을 소리 내어 읽으며 마음을 가다듬었다…
+            </p>
+            <div class="cta">보기 ›</div>
+          </div>
+        </section>
+
+        <!-- 만나 -->
+        <section class="column">
+          <div class="col-head">
+            <div class="icon-wrap sky" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+              </svg>
+            </div>
+            <div class="col-titles">
+              <h3>만나</h3>
+              <span>말씀과 본문</span>
+            </div>
+          </div>
+          <div class="bar sky"></div>
+          <div class="preview">
+            <div class="meta">2026-04-22 · QT</div>
+            <h4>시편 23:1–3</h4>
+            <p class="body">
+              여호와는 나의 목자시니 내게 부족함이 없으리로다… 쉴 만한 물 가으로 인도하시는도다. 오늘은
+              <span class="hl">쉼</span>이라는 단어가 유난히 달콤하게 다가왔다.
+            </p>
+            <div class="cta sky">보기 ›</div>
+          </div>
+        </section>
+
+        <!-- 감사 -->
+        <section class="column">
+          <div class="col-head">
+            <div class="icon-wrap rose" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25">
+                <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+              </svg>
+            </div>
+            <div class="col-titles">
+              <h3>감사</h3>
+              <span>감사 노트</span>
+            </div>
+          </div>
+          <div class="bar rose"></div>
+          <div class="preview">
+            <div class="meta">2026-04-24</div>
+            <h4>가족과 저녁 식탁</h4>
+            <p class="body">바쁜 한 주 끝에 모두가 한자리에 앉았다. 웃음 소리가 은혜였다.</p>
+            <div class="chips">
+              <span class="chip">가족 2</span>
+              <span class="chip">은혜 2</span>
+              <span class="chip">하나님 1</span>
+            </div>
+            <div class="cta rose">보기 ›</div>
+          </div>
+        </section>
+      </div>
+    </article>
+
+    <p class="hint">
+      <strong>캡처 팁:</strong> 페이지를 맨 왼쪽으로 스크롤한 뒤(가로·세로 모두 0), 브라우저 배율 100%에서 배너(둥근 사각형)만 잡아 저장하세요.
+      DevTools 디바이스 모드는 <code>Dimensions: 1932 × 828</code>로 두고 <strong>줌 100%</strong>인지 확인하면 잘리지 않습니다.
+    </p>
+  </body>
+</html>

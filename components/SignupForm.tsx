@@ -79,6 +79,18 @@ export function SignupForm(): ReactElement {
         <Input id="password" name="password" type="password" autoComplete="new-password" required minLength={6} />
         <p className="text-xs text-[var(--muted)]">6자 이상 입력해 주세요.</p>
       </div>
+      <div className="space-y-2">
+        <Label htmlFor="password_confirm">비밀번호 확인</Label>
+        <Input
+          id="password_confirm"
+          name="password_confirm"
+          type="password"
+          autoComplete="new-password"
+          required
+          minLength={6}
+        />
+        <p className="text-xs text-[var(--muted)]">같은 비밀번호를 한 번 더 입력해 주세요.</p>
+      </div>
       <Button type="submit" className="w-full" disabled={pending}>
         {pending ? '가입 중…' : '회원가입'}
       </Button>

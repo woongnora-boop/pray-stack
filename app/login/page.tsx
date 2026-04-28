@@ -31,7 +31,6 @@ export default async function LoginPage({ searchParams }: LoginPageProps): Promi
     <div className="mx-auto max-w-sm space-y-6">
       <div>
         <h1 className="text-xl font-semibold">로그인</h1>
-        <p className="mt-1 text-sm text-[var(--muted)]">Supabase에 등록된 이메일로 로그인합니다.</p>
       </div>
       <LoginForm defaultNext={defaultNext} authLinkError={authLinkError} />
       <p className="text-center text-sm text-[var(--muted)]">

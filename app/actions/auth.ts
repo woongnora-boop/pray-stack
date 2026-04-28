@@ -95,13 +95,18 @@ export async function signUp(
 ): Promise<AuthActionState> {
   const email = String(formData.get('email') ?? '').trim();
   const password = String(formData.get('password') ?? '');
+  const passwordConfirm = String(formData.get('password_confirm') ?? '');
 
-  if (!email || !password) {
+  if (!email || !password || !passwordConfirm) {
     return { success: false, error: '이메일과 비밀번호를 입력해 주세요.' };
   }
 
   if (password.length < 6) {
     return { success: false, error: '비밀번호는 6자 이상이어야 합니다.' };
+  }
+
+  if (password !== passwordConfirm) {
+    return { success: false, error: '비밀번호와 비밀번호 확인이 일치하지 않습니다.' };
   }
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
