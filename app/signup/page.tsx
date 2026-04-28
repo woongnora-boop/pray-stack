@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { ReactElement } from 'react';
 
+import { AuthInfoLinks } from '@/components/auth/AuthInfoLinks';
 import { SignupForm } from '@/components/SignupForm';
 import { getServerAuth } from '@/lib/supabase/request-session';
 
@@ -31,6 +32,7 @@ export default async function SignupPage(): Promise<ReactElement> {
           로그인
         </Link>
       </p>
+      <AuthInfoLinks />
     </div>
   );
 }

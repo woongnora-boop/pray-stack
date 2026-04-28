@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { ReactElement } from 'react';
 
 import { LoginForm } from '@/components/LoginForm';
+import { AuthInfoLinks } from '@/components/auth/AuthInfoLinks';
 import { safeRelativeNextPath } from '@/lib/site-url';
 import { getServerAuth } from '@/lib/supabase/request-session';
 
@@ -39,6 +40,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps): Promi
           회원가입
         </Link>
       </p>
+      <AuthInfoLinks />
     </div>
   );
 }
