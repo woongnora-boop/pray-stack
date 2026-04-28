@@ -4,7 +4,7 @@
   "scripts": {
     "clean": "rm -rf .next",
     "dev": "granite dev",
-    "build": "ait build",
+    "build": "next build",
     "start": "next start",
     "lint": "eslint .",
     "deploy": "ait deploy"

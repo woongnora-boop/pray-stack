@@ -16,5 +16,6 @@ export default defineConfig({
     },
   },
   permissions: [],
-  outdir: 'dist',
+  /** next build 산출물 경로와 일치해야 함 */
+  outdir: '.next',
 });
