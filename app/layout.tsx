@@ -21,6 +21,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: 'Pray Stack',
   description: 'Pray Stack — 묵상·말씀(만나)·감사를 한곳에 남기는 신앙 기록',
+  icons: {
+    icon: '/favicon.svg',
+  },
 };
 
 export default function RootLayout({ children }: { children: ReactNode }): ReactElement {

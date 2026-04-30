@@ -5,7 +5,7 @@ export default defineConfig({
   brand: {
     displayName: '프레이 스택',
     primaryColor: '#4A7C7E',
-    icon: '',
+    icon: 'public/favicon.svg',
   },
   web: {
     host: 'localhost',
